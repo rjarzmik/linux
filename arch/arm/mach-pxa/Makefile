@@ -50,6 +50,7 @@ obj-$(CONFIG_MACH_T3XSCALE)	+= palmt3/
 obj-$(CONFIG_MACH_XSCALE_PALMLD)	+= palmld/
 obj-$(CONFIG_MACH_RECON)        += plat-recon/
 obj-$(CONFIG_MACH_LOOXC550)	+= looxc550/
+obj-$(CONFIG_MACH_MIOA701)      += mioa701/
 
 # Support for blinky lights
 led-y := leds.o

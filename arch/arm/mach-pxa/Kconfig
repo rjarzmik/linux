@@ -46,6 +46,7 @@ source "arch/arm/mach-pxa/rover/Kconfig"
 source "arch/arm/mach-pxa/palmld/Kconfig"
 source "arch/arm/mach-pxa/palmt3/Kconfig"
 source "arch/arm/mach-pxa/plat-recon/Kconfig"
+source "arch/arm/mach-pxa/mioa701/Kconfig"
 
 config MACH_GHI270HG
 	bool "Grayhill Duramax HG"
