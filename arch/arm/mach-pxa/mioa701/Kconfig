@@ -17,3 +17,9 @@ config MACH_MIOA701_SOUND
 	help
 	  Enable support for the sound chip of the MIO A701.
 
+config MIOA701_BLUETOOTH
+	tristate "MITAC MIO A701 Bluetooth"
+	depends on MACH_MIOA701
+	help
+	  Enables support for the TI BRF6150 Bluetooth Module
+	  in the MIO A701.

@@ -258,6 +258,35 @@ static struct pxamci_platform_data mioa701_mci_info = {
 	.exit     = mioa701_mci_exit,
 };
 
+
+/*
+ * Bluetooth - Relies on other loadable modules, like ASIC3 and Core,
+ * so make the calls indirectly through pointers. Requires that the
+ * bluetooth module be loaded before any attempt to use
+ * bluetooth (obviously).
+ */
+static struct mioa701_bt_funcs bt_funcs;
+
+static void
+mioa701_bt_configure( int state )
+{
+	if (bt_funcs.configure != NULL)
+		bt_funcs.configure( state );
+}
+
+static struct platform_pxa_serial_funcs mioa701_pxa_bt_funcs = {
+        .configure = mioa701_bt_configure,
+};
+
+static struct platform_device mioa701_bt = {
+	.name = "mioa701-bt",
+	.id = -1,
+	.dev = {
+		.platform_data = &bt_funcs,
+	},
+};
+
+
 static void __init mioa701_init(void)
 {
 	set_pxa_fb_info(&mioa701_pxafb_info);
@@ -273,7 +302,9 @@ static void __init mioa701_init(void)
 	platform_device_register(&mioa701_gpio_keys);
 
 	platform_device_register(&mioa701_backlight);
+	platform_device_register(&mioa701_bt);
 
+	pxa_set_btuart_info(&mioa701_pxa_bt_funcs);
 }
 
 MACHINE_START(MIOA701, "MIO A701")

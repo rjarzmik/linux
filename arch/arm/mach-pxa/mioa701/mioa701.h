@@ -14,4 +14,17 @@
 #define MIOA701_SDIO_INSERT 15
 #define MIOA701_SDIO_EN     91
 
+/* Bluetooth */
+#define GPIO_NR_MIOA701_BT_RXD_MD		(42 | GPIO_ALT_FN_1_IN)
+#define GPIO_NR_MIOA701_BT_TXD_MD		(43 | GPIO_ALT_FN_2_OUT)
+#define GPIO_NR_MIOA701_BT_UART_CTS_MD		(44 | GPIO_ALT_FN_1_IN)
+#define GPIO_NR_MIOA701_BT_UART_RTS_MD		(45 | GPIO_ALT_FN_2_OUT)
+#define GPIO_NR_MIOA701_BT_ON			83
+#define GPIO_NR_MIOA701_BT_RESET		97
+
+struct mioa701_bt_funcs {
+	void (*configure) ( int state );
+};
+
+
 #endif /* _MIOA701_H */
