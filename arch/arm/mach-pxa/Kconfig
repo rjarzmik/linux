@@ -201,4 +201,65 @@ config PXA27x_VOLTAGE_MAX158xx
 	tristate "MAX158xx PMIC"
 	depends on PXA27x_VOLTAGE
 
+config GPIO
+ bool "GPIO pin support for PXA27x"
+ default y if ARM || PPC
+ default n
+ help
+ Enabling this option adds support for PXA GPIO pins. Most
+ System-on-Chip processors have this kind of pins mostly shared
+ with some kind of internal hardware. Remaining pins may be used
+ for any purposes (input/output/interrupt etc). To do so, enable
+ this feature and provide some kernel parameters to define what
+ pins are available. To define one or more GPIO pin give a:
+ gpio.mapping=<pin#>:(in|(out:(hi|lo)))[.<pin#>:(in|(out:(hi|lo)))]
+ Where <pin#> is any GPIO pin number your SoC supports, out or in
+ is the data direction and hi or lo is one of the possible
+ levels an output pin can have.
+ For example. You have three GPIO: pin 8, 63 and 113. Pin 8 is a
+ simple key input, pin 63 an output to control a motor. It needs
+ a high level first to stop the motor while booting. Pin 113 is
+ also an output pin, but needs low level while booting. To do so,
+ give this kernel parameter:
+ gpio.mapping=8:in.63:out:hi.113:out:lo
+ With "cat /proc/gpio" you will get:
+ GPIO POLICY DIRECTION OWNER
+ 8: user space input kernel
+ 63: user space output kernel
+ 113: user space output kernel
+ To set pin 63 to low (to start the motor) do a:
+ $ echo 0 > /sys/class/gpio/gpio63/level
+ Or to stop the motor again:
+ $ echo 1 > /sys/class/gpio/gpio63/level
+ To get the level of the key (pin 8) do:
+ $ cat /sys/class/gpio/gpio8/level
+ The result will be 1 or 0.
+
+ To add new GPIO pins at runtime (lets say pin 88 should be an input)
+ you can do a:
+ $ echo 88:in > /sys/class/gpio/map_gpio
+ The same with a new GPIO pin 95, it should be an output and at high level:
+ $ echo 95:out:hi > /sys/class/gpio/map_gpio
+
+ After that "cat /proc/gpio" will show you:
+ GPIO POLICY DIRECTION OWNER
+ 8: user space input kernel
+ 63: user space output kernel
+ 113: user space output kernel
+ 88: user space input kernel
+ 95: user space output kernel
+
+ Note: You can add more than one new GPIO pin in one step. The period is the
+ delimiter between each pin definition. To add the pins 88 and 95 in the
+ example above in one step do a:
+ $ echo 88:in.95:out:hi > /sys/class/gpio/map_gpio
+
+ To remove any of these GPIOs use (in this example GPIO pin 95):
+ $ echo 95 > /sys/class/gpio/unmap_gpio
+
+ If unsure, say N.
+
+
+
 endif
+

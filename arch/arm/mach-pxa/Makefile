@@ -67,6 +67,7 @@ obj-$(CONFIG_CPU_FREQ_PXA) += cpu-pxa.o
 # Misc features
 obj-$(CONFIG_PM) += pm.o sleep.o
 obj-$(CONFIG_PXA_SSP) += ssp.o
+obj-$(CONFIG_GPIO) += pxa27x_gpio.o
 
 ifeq ($(CONFIG_PXA27x),y)
 obj-$(CONFIG_PM) += standby.o
