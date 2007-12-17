@@ -259,11 +259,8 @@ static struct pxamci_platform_data mioa701_mci_info = {
 };
 
 
-/*
- * Bluetooth - Relies on other loadable modules, like ASIC3 and Core,
- * so make the calls indirectly through pointers. Requires that the
- * bluetooth module be loaded before any attempt to use
- * bluetooth (obviously).
+/* 
+ * Bluetooth
  */
 static struct mioa701_bt_funcs bt_funcs;
 
@@ -286,6 +283,45 @@ static struct platform_device mioa701_bt = {
 	},
 };
 
+/*
+ * Phone
+ */
+static struct mioa701_phone_funcs phone_funcs;
+
+static void
+mioa701_phone_configure( int state )
+{
+	if (phone_funcs.configure != NULL)
+		phone_funcs.configure( state );
+}
+
+static struct platform_pxa_serial_funcs mioa701_pxa_phone_funcs = {
+        .configure = mioa701_phone_configure,
+};
+
+static struct platform_device mioa701_phone = {
+	.name = "mioa701-phone",
+	.id = -1,
+	.dev = {
+		.platform_data = &phone_funcs,
+	},
+};
+
+static void __init mioa701_map_io(void)
+{
+	pxa_map_io();
+
+        pxa_set_ffuart_info(&mioa701_pxa_phone_funcs);
+	pxa_set_btuart_info(&mioa701_pxa_bt_funcs);
+}
+
+static struct platform_device *devices[] __initdata = {
+	&mioa701_pxa_keyboard,
+	&mioa701_gpio_keys,
+        &mioa701_backlight,
+        &mioa701_phone,
+        &mioa701_bt,
+};
 
 static void __init mioa701_init(void)
 {
@@ -294,24 +330,18 @@ static void __init mioa701_init(void)
 	/* XXX: does this turns on USB ? */
 	gpio_set_value(MIOA701_USB_EN0, 1);
 	gpio_set_value(MIOA701_USB_EN1, 1);
+
+        platform_add_devices(devices, ARRAY_SIZE(devices));
+
 	pxa_set_udc_info(&mioa701_udc_info);
-
 	pxa_set_mci_info(&mioa701_mci_info);
-
-	platform_device_register(&mioa701_pxa_keyboard);
-	platform_device_register(&mioa701_gpio_keys);
-
-	platform_device_register(&mioa701_backlight);
-	platform_device_register(&mioa701_bt);
-
-	pxa_set_btuart_info(&mioa701_pxa_bt_funcs);
 }
 
 MACHINE_START(MIOA701, "MIO A701")
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
-	.map_io		= &pxa_map_io,
+	.map_io		= &mioa701_map_io,
 	.init_irq	= &pxa_init_irq,
 	.init_machine	= mioa701_init,
 	.timer		= &pxa_timer,
