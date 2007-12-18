@@ -30,3 +30,10 @@ config MIOA701_GSM
 	help
 	  Enables support for the Sagem XS200 GSM Module
 	  in the MIO A701.
+
+config MIOA701_GPS
+	tristate "MITAC MIO A701 GPS"
+	depends on MACH_MIOA701
+	help
+	  Enables support for the GPS Module
+	  in the MIO A701.

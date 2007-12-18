@@ -307,12 +307,38 @@ static struct platform_device mioa701_phone = {
 	},
 };
 
+/*
+ * GPS
+ */
+static struct mioa701_gps_funcs gps_funcs;
+
+static void
+mioa701_gps_configure( int state )
+{
+	if (phone_funcs.configure != NULL)
+		phone_funcs.configure( state );
+}
+
+static struct platform_pxa_serial_funcs mioa701_pxa_gps_funcs = {
+        .configure = mioa701_gps_configure,
+};
+
+static struct platform_device mioa701_gps = {
+	.name = "mioa701-gps",
+	.id = -1,
+	.dev = {
+		.platform_data = &gps_funcs,
+	},
+};
+
+
 static void __init mioa701_map_io(void)
 {
 	pxa_map_io();
 
         pxa_set_ffuart_info(&mioa701_pxa_phone_funcs);
 	pxa_set_btuart_info(&mioa701_pxa_bt_funcs);
+	pxa_set_stuart_info(&mioa701_pxa_gps_funcs);
 }
 
 static struct platform_device *devices[] __initdata = {
