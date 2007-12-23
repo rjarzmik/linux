@@ -29,22 +29,39 @@ mioa701_phone_configure( int state )
 
 	case PXA_UART_CFG_POST_STARTUP:
 		/* pre-serial-up hardware configuration */
-                
-                gpio_set_value(GPIO_NR_MIOA701_GSM_PREP, 0);
-                mdelay(100);
-                gpio_set_value(GPIO_NR_MIOA701_GSM_PREP, 1);
-		// gpio_set_value(GPIO_NR_MIOA701_PHONE_ON, 1);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_UNKNOWN2, 1);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_UNKNOWN1, 1);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_PREP, 1);
+                gpio_set_value(GPIO_NR_MIOA701_GSM_OFF, 0);
+		mdelay(100);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_PREP, 0);
+                mdelay(10);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_PREP, 1);
 
 		tries = 0;
 		do {
 			mdelay(10);
-                        ready = gpio_get_value(GPIO_NR_MIOA701_GSM_ON);
-		} while ( ready == 0 && tries++ < 200);
-
+		} while ( (FFMSR & MSR_CTS) && (tries++ < 200) );
+		if (tries >= 200) {
+			printk("MioA701 phone: failed to bring up GSM.\n");
+		} else {
+			printk("MioA701 phone: GSM turned on.\n");
+		}
 		break;
 
 	case PXA_UART_CFG_PRE_SHUTDOWN:
-		gpio_set_value(GPIO_NR_MIOA701_GSM_ON, 0);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_UNKNOWN1, 1);
+		mdelay(1);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_PREP, 1);
+		mdelay(1);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_OFF, 1);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_UNKNOWN1, 0);
+		mdelay(1);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_UNKNOWN1, 1);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_UNKNOWN2, 0);
+		mdelay(1);
+		gpio_set_value(GPIO_NR_MIOA701_GSM_UNKNOWN2, 1);
+		printk("MioA701 phone: GSM turned off.\n");
 		break;
 
 	default:
@@ -58,12 +75,18 @@ mioa701_phone_probe( struct platform_device *dev )
 {
 	struct mioa701_phone_funcs *funcs = dev->dev.platform_data;
 
+	/* configure phone GPIOS */
+	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_OFF | GPIO_OUT | GPIO_DFLT_LOW);
+	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_PREP | GPIO_OUT);
+	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UNKNOWN1 | GPIO_OUT );
+	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UNKNOWN2 | GPIO_OUT );
+
 	/* configure phone UART */
 	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UART_CTS );
 	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UART_RTS );
 	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UART_DTR );
+	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UART_DSR );
 	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UART_DCD );
-	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UART_RTS );
 	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UART_RXD );
 	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UART_TXD );
 
@@ -82,11 +105,11 @@ mioa701_phone_remove( struct platform_device *dev )
 }
 
 static struct platform_driver phone_driver = {
-	.driver   = {
-		.name     = "mioa701-phone",
+	.driver	  = {
+		.name	  = "mioa701-phone",
 	},
-	.probe    = mioa701_phone_probe,
-	.remove   = mioa701_phone_remove,
+	.probe	  = mioa701_phone_probe,
+	.remove	  = mioa701_phone_remove,
 };
 
 static int __init

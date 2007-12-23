@@ -315,8 +315,8 @@ static struct mioa701_gps_funcs gps_funcs;
 static void
 mioa701_gps_configure( int state )
 {
-	if (phone_funcs.configure != NULL)
-		phone_funcs.configure( state );
+	if (gps_funcs.configure != NULL)
+		gps_funcs.configure( state );
 }
 
 static struct platform_pxa_serial_funcs mioa701_pxa_gps_funcs = {
@@ -347,6 +347,7 @@ static struct platform_device *devices[] __initdata = {
         &mioa701_backlight,
         &mioa701_phone,
         &mioa701_bt,
+        &mioa701_gps,
 };
 
 static void __init mioa701_init(void)
