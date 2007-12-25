@@ -37,3 +37,10 @@ config MIOA701_GPS
 	help
 	  Enables support for the GPS Module
 	  in the MIO A701.
+
+config MIOA701_PM
+	tristate "MITAC MIO A701 PM"
+	depends on MACH_MIOA701
+	help
+	  Enables support for the Power Managment
+	  in the MIO A701.
