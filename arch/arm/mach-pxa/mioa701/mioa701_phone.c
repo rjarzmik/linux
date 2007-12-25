@@ -1,8 +1,8 @@
-
 /* Phone interface driver for Sagem XS200 on MIO A701
  *
- *
  * 2007-12-12 Robert Jarzmik
+ *
+ * This code is licenced under the GPLv2.
  */
 
 #include <linux/module.h>
@@ -19,7 +19,7 @@
 static void
 mioa701_phone_configure( int state )
 {
-	int tries, ready;
+	int tries;
 
 	//printk( KERN_NOTICE "mioa701 configure phone: %d\n", state );
 	switch (state) {
@@ -41,12 +41,13 @@ mioa701_phone_configure( int state )
 		tries = 0;
 		do {
 			mdelay(10);
-		} while ( (FFMSR & MSR_CTS) && (tries++ < 200) );
-		if (tries >= 200) {
-			printk("MioA701 phone: failed to bring up GSM.\n");
+		} while ( (FFMSR & MSR_CTS) && (tries++ < 300) );
+		if (tries >= 300) {
+			printk("MioA701 phone: expect garbage at GSM start.\n");
 		} else {
 			printk("MioA701 phone: GSM turned on.\n");
 		}
+                try_module_get(THIS_MODULE);
 		break;
 
 	case PXA_UART_CFG_PRE_SHUTDOWN:
@@ -63,6 +64,9 @@ mioa701_phone_configure( int state )
 		gpio_set_value(GPIO_NR_MIOA701_GSM_UNKNOWN2, 1);
 		printk("MioA701 phone: GSM turned off.\n");
 		break;
+
+	case PXA_UART_CFG_POST_SHUTDOWN:
+                module_put(THIS_MODULE);
 
 	default:
 		break;
@@ -101,6 +105,7 @@ mioa701_phone_remove( struct platform_device *dev )
 	struct mioa701_phone_funcs *funcs = dev->dev.platform_data;
 
 	funcs->configure = NULL;
+
 	return 0;
 }
 

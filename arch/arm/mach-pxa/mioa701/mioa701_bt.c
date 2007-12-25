@@ -1,5 +1,8 @@
 /* Bluetooth interface driver for TI BRF6150 on MIO A701
  *
+ * 2007-12-12 Robert Jarzmik
+ *
+ * This code is licenced under the GPLv2.
  */
 
 #include <linux/module.h>
@@ -29,9 +32,9 @@ mioa701_bt_configure( int state )
 	case PXA_UART_CFG_POST_STARTUP:
 		/* pre-serial-up hardware configuration */
 		gpio_set_value(GPIO_NR_MIOA701_BT_ON, 1);
-		gpio_set_value(GPIO_NR_MIOA701_BT_RESET, 1);
-		mdelay(1);
-		gpio_set_value(GPIO_NR_MIOA701_BT_RESET, 0);
+		gpio_set_value(GPIO_NR_MIOA701_BT_READY, 0);
+                mdelay(10);
+		gpio_set_value(GPIO_NR_MIOA701_BT_READY, 1);
 
 		/*
 		 * BRF6150's RTS goes low when firmware is ready
@@ -41,15 +44,15 @@ mioa701_bt_configure( int state )
 		do {
 			mdelay(10);
 		} while ((BTMSR & MSR_CTS) == 0 && tries++ < 50);
+                try_module_get(THIS_MODULE);
 		break;
 
 	case PXA_UART_CFG_PRE_SHUTDOWN:
 		gpio_set_value(GPIO_NR_MIOA701_BT_ON, 0);
-		gpio_set_value(GPIO_NR_MIOA701_BT_RESET, 0);
-		mdelay(1);
-		gpio_set_value(GPIO_NR_MIOA701_BT_RESET, 1);
 		break;
 
+	case PXA_UART_CFG_POST_SHUTDOWN:
+                module_put(THIS_MODULE);
 	default:
 		break;
 	}
@@ -66,6 +69,8 @@ mioa701_bt_probe( struct platform_device *pdev )
 	pxa_gpio_mode( GPIO_NR_MIOA701_BT_TXD_MD );
 	pxa_gpio_mode( GPIO_NR_MIOA701_BT_UART_CTS_MD );
 	pxa_gpio_mode( GPIO_NR_MIOA701_BT_UART_RTS_MD );
+	pxa_gpio_mode( GPIO_NR_MIOA701_BT_ON | GPIO_OUT );
+	pxa_gpio_mode( GPIO_NR_MIOA701_BT_READY | GPIO_OUT );
 
 	funcs->configure = mioa701_bt_configure;
 

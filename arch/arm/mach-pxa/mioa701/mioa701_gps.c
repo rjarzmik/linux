@@ -1,8 +1,8 @@
-
 /* Phone interface driver for GPS SIRF-III
  *
- *
  * 2007-12-12 Robert Jarzmik
+ *
+ * This code is licenced under the GPLv2.
  */
 
 #include <linux/module.h>
@@ -19,8 +19,6 @@
 static void
 mioa701_gps_configure( int state )
 {
-	int tries, ready;
-
 	//printk( KERN_NOTICE "mioa701 configure gps: %d\n", state );
 	switch (state) {
 	
@@ -29,10 +27,14 @@ mioa701_gps_configure( int state )
 
 	case PXA_UART_CFG_POST_STARTUP:
 		/* pre-serial-up hardware configuration */
+                try_module_get(THIS_MODULE);
 		break;
 
 	case PXA_UART_CFG_PRE_SHUTDOWN:
 		break;
+
+	case PXA_UART_CFG_POST_SHUTDOWN:
+                module_put(THIS_MODULE);
 
 	default:
 		break;
@@ -50,6 +52,7 @@ mioa701_gps_probe( struct platform_device *dev )
 	pxa_gpio_mode( GPIO_NR_MIOA701_GPS_UART_TXD );
 
 	funcs->configure = mioa701_gps_configure;
+
 	return 0;
 }
 
@@ -59,6 +62,7 @@ mioa701_gps_remove( struct platform_device *dev )
 	struct mioa701_gps_funcs *funcs = dev->dev.platform_data;
 
 	funcs->configure = NULL;
+
 	return 0;
 }
 

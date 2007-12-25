@@ -102,8 +102,8 @@ static ssize_t gpio_show_level(struct class_device *dev, char *buf)
         ssize_t ret_size = 0;
 
         spin_lock(&gpio_dev->lock);
-        if (!(gpio_dev->props.policy & GPIO_OUTPUT))
-                gpio_dev->props.pin_level = gpio_get_value(gpio_dev->props.pin_nr);
+        //RJK if (!(gpio_dev->props.policy & GPIO_OUTPUT))
+        gpio_dev->props.pin_level = gpio_get_value(gpio_dev->props.pin_nr);
 
         ret_size += sprintf(buf, "%i\n", gpio_dev->props.pin_level);
         spin_unlock(&gpio_dev->lock);
