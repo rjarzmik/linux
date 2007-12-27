@@ -38,6 +38,10 @@
 #define GPIO_NR_MIOA701_GSM_UART_RTS		(41 | GPIO_ALT_FN_2_OUT)
 #define GPIO_NR_MIOA701_GSM_UNKNOWN1		114
 #define GPIO_NR_MIOA701_GSM_UNKNOWN2		90
+
+/* SOUND */
+#define GPIO89_AC97_SYSCLK_MD			(89 | GPIO_ALT_FN_1_OUT)
+
 struct mioa701_bt_funcs {
 	void (*configure) ( int state );
 };

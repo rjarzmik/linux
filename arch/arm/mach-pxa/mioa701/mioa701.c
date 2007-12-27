@@ -40,6 +40,7 @@
 #include <asm/arch/mmc.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/ohci.h>
+#include <asm/arch/audio.h>
 
 #include "../generic.h"
 #include "mioa701.h"
@@ -330,7 +331,6 @@ static struct platform_device mioa701_gps = {
 		.platform_data = &gps_funcs,
 	},
 };
-
 
 static void __init mioa701_map_io(void)
 {

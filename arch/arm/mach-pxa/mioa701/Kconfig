@@ -13,7 +13,6 @@ config MACH_MIOA701_SOUND
 	depends on MACH_MIOA701
 	select SND_PXA2XX_SOC
 	select SND_PXA2XX_SOC_AC97
-	select SND_SOC_WM9713
 	help
 	  Enable support for the sound chip of the MIO A701.
 
