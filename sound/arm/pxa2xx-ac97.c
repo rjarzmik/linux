@@ -32,6 +32,8 @@
 
 #include "pxa2xx-pcm.h"
 
+//Robert Jarzmik: very dirty trick, wait for mail exchange with official maintainer
+#undef CONFIG_PXA27x
 
 static DEFINE_MUTEX(car_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(gsr_wq);
