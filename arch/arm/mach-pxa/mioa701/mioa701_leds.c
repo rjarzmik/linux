@@ -67,8 +67,6 @@ static int mioa701_led_probe(struct platform_device *dev)
 {
 	int i,ret=0;
 
-	printk("mioa701_led_probe\n");
-
 	for (i = 0; i < ARRAY_SIZE(leds); i++) {
 		ret = led_classdev_register(&dev->dev, &leds[i].led);
 		pxa_gpio_mode(leds[i].gpio | GPIO_OUT | GPIO_DFLT_HIGH);
@@ -84,8 +82,6 @@ static int mioa701_led_probe(struct platform_device *dev)
 static int mioa701_led_remove(struct platform_device *dev)
 {
 	int i;
-
-	printk("mioa701_led_remove\n");
 
 	for (i = 0; i < ARRAY_SIZE(leds); i++) {
 		leds[i].led.brightness_set(&leds[i].led, LED_OFF);
