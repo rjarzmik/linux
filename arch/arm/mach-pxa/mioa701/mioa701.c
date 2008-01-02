@@ -2,6 +2,7 @@
  * Hardware definitions for MIO A701
  *
  * Copyright (c) 2007 Damien Tournoud
+ *                    Robert Jarzmik
  *
  * Use consistent with the GNU GPL is permitted,
  * provided that this copyright notice is
@@ -332,6 +333,13 @@ static struct platform_device mioa701_gps = {
 	},
 };
 
+/* Leds */
+static struct platform_device mioa701_led = {
+        .name   = "mioa701-leds",
+        .id     = -1,
+};
+
+
 static void __init mioa701_map_io(void)
 {
 	pxa_map_io();
@@ -348,6 +356,7 @@ static struct platform_device *devices[] __initdata = {
         &mioa701_phone,
         &mioa701_bt,
         &mioa701_gps,
+        &mioa701_led,
 };
 
 static void __init mioa701_init(void)

@@ -20,7 +20,6 @@
 #define GPIO_NR_MIOA701_BT_UART_CTS_MD		(44 | GPIO_ALT_FN_1_IN)
 #define GPIO_NR_MIOA701_BT_UART_RTS_MD		(45 | GPIO_ALT_FN_2_OUT)
 #define GPIO_NR_MIOA701_BT_ON			83
-#define GPIO_NR_MIOA701_BT_READY		97
 
 /* GPS */
 #define GPIO_NR_MIOA701_GPS_UART_RXD		(46 | GPIO_ALT_FN_2_IN)
@@ -41,6 +40,13 @@
 
 /* SOUND */
 #define GPIO89_AC97_SYSCLK_MD			(89 | GPIO_ALT_FN_1_OUT)
+
+/* LEDS */
+#define MIOA701_LED_nBLUE			97
+#define MIOA701_LED_nOrange			98
+#define MIOA701_LED_nVibra			82
+#define MIOA701_LED_nKeyboard			115
+
 
 struct mioa701_bt_funcs {
 	void (*configure) ( int state );

@@ -3,6 +3,8 @@ menuconfig MACH_MIOA701
 	select PXA27x
 	select IWMMXT
 	select BOARD_IRQ_MAP_SMALL
+	select SND_PXA2XX_SOC
+	select SND_PXA2XX_SOC_AC97
 	help
 		Say Y here if you intend to run this kernel on a
 		MIO A701. Currently there is only basic support
@@ -42,4 +44,11 @@ config MIOA701_PM
 	depends on MACH_MIOA701
 	help
 	  Enables support for the Power Managment
+	  in the MIO A701.
+
+config MIOA701_LEDS
+	tristate "MITAC MIO A701 LEDS"
+	depends on MACH_MIOA701
+	help
+	  Enables support for the Leds and Vibrator
 	  in the MIO A701.

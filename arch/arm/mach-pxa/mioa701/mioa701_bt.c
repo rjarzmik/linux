@@ -32,9 +32,6 @@ mioa701_bt_configure( int state )
 	case PXA_UART_CFG_POST_STARTUP:
 		/* pre-serial-up hardware configuration */
 		gpio_set_value(GPIO_NR_MIOA701_BT_ON, 1);
-		gpio_set_value(GPIO_NR_MIOA701_BT_READY, 0);
-                mdelay(10);
-		gpio_set_value(GPIO_NR_MIOA701_BT_READY, 1);
 
 		/*
 		 * BRF6150's RTS goes low when firmware is ready
@@ -70,7 +67,6 @@ mioa701_bt_probe( struct platform_device *pdev )
 	pxa_gpio_mode( GPIO_NR_MIOA701_BT_UART_CTS_MD );
 	pxa_gpio_mode( GPIO_NR_MIOA701_BT_UART_RTS_MD );
 	pxa_gpio_mode( GPIO_NR_MIOA701_BT_ON | GPIO_OUT );
-	pxa_gpio_mode( GPIO_NR_MIOA701_BT_READY | GPIO_OUT );
 
 	funcs->configure = mioa701_bt_configure;
 
