@@ -14,7 +14,7 @@ snd-soc-wm8980-objs := wm8980.o
 snd-soc-uda1380-objs := uda1380.o
 snd-soc-ak4535-objs := ak4535.o
 snd-soc-wm9705-objs := wm9705.o
-snd-soc-wm9713-objs := wm9713.o
+snd-soc-wm9713-objs := wm9713.o ac97_proc.o
 snd-soc-wm9712-objs := wm9712.o
 
 obj-$(CONFIG_SND_SOC_AC97_CODEC)	+= snd-soc-ac97.o

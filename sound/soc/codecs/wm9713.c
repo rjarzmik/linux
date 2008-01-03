@@ -35,6 +35,10 @@
 
 #define WM9713_VERSION "0.12"
 
+// RJK
+void rjk_ac97_proc_init(struct snd_soc_codec *codec);
+void rjk_ac97_proc_done(struct snd_soc_codec *codec);
+
 struct wm9713_priv {
 	u32 pll_in; /* PLL input frequency */
 	u32 pll_out; /* PLL output frequency */
@@ -1168,6 +1172,9 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	ret = snd_soc_register_card(socdev);
 	if (ret < 0)
 		goto reset_err;
+
+	/* RJK add debug support */
+	rjk_ac97_proc_init(codec);
 	return 0;
 
 reset_err:
@@ -1196,12 +1203,15 @@ static int wm9713_soc_remove(struct platform_device *pdev)
 	if (codec == NULL)
 		return 0;
 
+	/* RJK add debug support */
+	rjk_ac97_proc_done(codec);
+
 	snd_soc_dapm_free(socdev);
 	snd_soc_free_pcms(socdev);
 	snd_soc_free_ac97_codec(codec);
 	kfree(codec->private_data);
 	kfree(codec->reg_cache);
-	kfree(codec->dai);
+	//kfree(codec->dai);
 	kfree(codec);
 	return 0;
 }
