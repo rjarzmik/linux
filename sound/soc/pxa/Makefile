@@ -28,6 +28,7 @@ snd-soc-magician-objs := magician.o
 snd-soc-amesom-tlv320-objs := amesom_tlv320.o
 snd-soc-blueangel-objs := blueangel.o
 snd-soc-h5000-objs := h5000.o
+snd-soc-mioa701-objs := mioa701_wm9713.o
 
 obj-$(CONFIG_SND_PXA2XX_SOC_CORGI) += snd-soc-corgi.o
 obj-$(CONFIG_SND_PXA2XX_SOC_MAINSTONE_WM8731) += snd-soc-mainstone-wm8731.o
@@ -47,4 +48,5 @@ obj-$(CONFIG_SND_PXA2XX_SOC_MAGICIAN) += snd-soc-magician.o
 obj-$(CONFIG_SND_PXA2XX_SOC_AMESOM_TLV320) += snd-soc-amesom-tlv320.o
 obj-$(CONFIG_SND_PXA2XX_SOC_BLUEANGEL) += snd-soc-blueangel.o
 obj-$(CONFIG_SND_PXA2XX_SOC_H5000) += snd-soc-h5000.o
+obj-$(CONFIG_SND_PXA2XX_SOC_MIOA701) += snd-soc-mioa701.o
 
