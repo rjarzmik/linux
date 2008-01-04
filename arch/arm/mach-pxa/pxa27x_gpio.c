@@ -22,6 +22,7 @@
 #include <linux/timer.h>
 #include <linux/proc_fs.h>
 #include <asm/arch/gpio.h>
+#include <asm/hardware.h>
 #include <linux/parser.h>
 
 #define DRIVER_NAME "gpio"
@@ -103,11 +104,12 @@ static ssize_t gpio_show_level(struct class_device *dev, char *buf)
 
         spin_lock(&gpio_dev->lock);
         //RJK if (!(gpio_dev->props.policy & GPIO_OUTPUT))
-        gpio_dev->props.pin_level = gpio_get_value(gpio_dev->props.pin_nr);
+        gpio_dev->props.pin_level = (gpio_get_value(gpio_dev->props.pin_nr) > 0);
 
         ret_size += sprintf(buf, "%i\n", gpio_dev->props.pin_level);
         spin_unlock(&gpio_dev->lock);
 
+        printk("RJK: gets GPIO %d to value %d\n", gpio_dev->props.pin_nr, gpio_dev->props.pin_level);
         return ret_size;
 }
 
@@ -139,14 +141,13 @@ static ssize_t gpio_store_level(struct class_device *dev, const char *buf, size_
         /* set real hardware */
         switch (value) {
         case 0: gpio_set_value(gpio_dev->props.pin_nr, 0);
-                gpio_direction_output(gpio_dev->props.pin_nr, GPIO_DFLT_HIGH);
                 break;
         case 1: gpio_set_value(gpio_dev->props.pin_nr, 1);
-                gpio_direction_output(gpio_dev->props.pin_nr, GPIO_DFLT_HIGH);
                 break;
         default: break;
         }
         spin_unlock(&gpio_dev->lock);
+        printk("RJK: sets GPIO %d to value %d\n", gpio_dev->props.pin_nr, (int)value);
         return size;
 }
 
@@ -309,7 +310,7 @@ int request_gpio(unsigned int pin_nr, const char *owner,
         if (policy & GPIO_OUTPUT) {
                 switch (init_level) {
                 case 0: gpio_set_value(gpio_dev->props.pin_nr, 0); break;
-                case 1: gpio_set_value(gpio_dev->props.pin_nr, 0); break;
+                case 1: gpio_set_value(gpio_dev->props.pin_nr, 1); break;
                 default: break;
                 }
                 gpio_direction_output(pin_nr, GPIO_DFLT_HIGH);

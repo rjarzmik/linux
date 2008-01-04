@@ -26,28 +26,28 @@ static void mioa701_led_brightness_set(struct led_classdev *led_cdev, enum led_b
 
 static struct mioa701_leds leds[] = {
 	{
-		.gpio   = MIOA701_LED_nBLUE,
+		.gpio   = GPIO_MIOA701_LED_nBLUE,
 		.led  = {
 			.name	       = "mioa701:blue",
 			.brightness_set = mioa701_led_brightness_set,
 		}
 	},
 	{
-		.gpio   = MIOA701_LED_nOrange,
+		.gpio   = GPIO_MIOA701_LED_nOrange,
 		.led  = {
 			.name	       = "mioa701:orange",
 			.brightness_set = mioa701_led_brightness_set,
 		}
 	},
 	{
-		.gpio   = MIOA701_LED_nVibra,
+		.gpio   = GPIO_MIOA701_LED_nVibra,
 		.led  = {
 			.name	       = "mioa701:vibra",
 			.brightness_set = mioa701_led_brightness_set,
 		}
 	},
 	{
-		.gpio   = MIOA701_LED_nKeyboard,
+		.gpio   = GPIO_MIOA701_LED_nKeyboard,
 		.led  = {
 			.name	       = "mioa701:keyboard",
 			.brightness_set = mioa701_led_brightness_set,

@@ -35,6 +35,7 @@
 #define GPIO_NR_MIOA701_GSM_UART_TXD		(39 | GPIO_ALT_FN_2_OUT)
 #define GPIO_NR_MIOA701_GSM_UART_DTR		(40 | GPIO_ALT_FN_2_OUT)
 #define GPIO_NR_MIOA701_GSM_UART_RTS		(41 | GPIO_ALT_FN_2_OUT)
+#define GPIO_NR_MIOA701_GSM_EVENT		113
 #define GPIO_NR_MIOA701_GSM_UNKNOWN1		114
 #define GPIO_NR_MIOA701_GSM_UNKNOWN2		90
 
@@ -42,10 +43,10 @@
 #define GPIO89_AC97_SYSCLK_MD			(89 | GPIO_ALT_FN_1_OUT)
 
 /* LEDS */
-#define MIOA701_LED_nBLUE			97
-#define MIOA701_LED_nOrange			98
-#define MIOA701_LED_nVibra			82
-#define MIOA701_LED_nKeyboard			115
+#define GPIO_MIOA701_LED_nBLUE			97
+#define GPIO_MIOA701_LED_nOrange		98
+#define GPIO_MIOA701_LED_nVibra			82
+#define GPIO_MIOA701_LED_nKeyboard		115
 
 
 struct mioa701_bt_funcs {

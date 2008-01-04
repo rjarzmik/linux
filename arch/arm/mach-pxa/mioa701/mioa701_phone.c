@@ -84,6 +84,7 @@ mioa701_phone_probe( struct platform_device *dev )
 	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_PREP | GPIO_OUT);
 	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UNKNOWN1 | GPIO_OUT );
 	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UNKNOWN2 | GPIO_OUT );
+	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_EVENT );
 
 	/* configure phone UART */
 	pxa_gpio_mode( GPIO_NR_MIOA701_GSM_UART_CTS );

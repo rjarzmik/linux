@@ -3,8 +3,6 @@ menuconfig MACH_MIOA701
 	select PXA27x
 	select IWMMXT
 	select BOARD_IRQ_MAP_SMALL
-	select SND_PXA2XX_SOC
-	select SND_PXA2XX_SOC_AC97
 	help
 		Say Y here if you intend to run this kernel on a
 		MIO A701. Currently there is only basic support
@@ -13,8 +11,7 @@ menuconfig MACH_MIOA701
 config MACH_MIOA701_SOUND
 	tristate "MIO A701 sound support"
 	depends on MACH_MIOA701
-	select SND_PXA2XX_SOC
-	select SND_PXA2XX_SOC_AC97
+	select SND_PXA2XX_SOC_MIOA701
 	help
 	  Enable support for the sound chip of the MIO A701.
 
