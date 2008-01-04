@@ -26,85 +26,16 @@
 
 static struct snd_soc_machine mioa701;
 
-static int mioa701_voice_startup(struct snd_pcm_substream *substream)
-{
-	/* enable USB on the go MUX so we can use SSPFRM2 */
-	//MST_MSCWR2 |= MST_MSCWR2_USB_OTG_SEL;
-	//MST_MSCWR2 &= ~MST_MSCWR2_USB_OTG_RST;
-	return 0;
-}
-
-static void mioa701_voice_shutdown(struct snd_pcm_substream *substream)
-{
-	/* disable USB on the go MUX so we can use ttyS0 */
-	//MST_MSCWR2 &= ~MST_MSCWR2_USB_OTG_SEL;
-	//MST_MSCWR2 |= MST_MSCWR2_USB_OTG_RST;
-}
-
-static int mioa701_voice_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
-	unsigned int bclk = 0, pcmdiv = 0;
-	int ret = 0;
-
-	switch (params_rate(params)) {
-	case 8000:
-		pcmdiv = WM9713_PCMDIV(12); /* 2.048 MHz */
-		bclk = WM9713_PCMBCLK_DIV_16; /* 128kHz */
-		break;
-	case 16000:
-		pcmdiv = WM9713_PCMDIV(6); /* 4.096 MHz */
-		bclk = WM9713_PCMBCLK_DIV_16; /* 256kHz */
-		break;
-	case 48000:
-		pcmdiv = WM9713_PCMDIV(2); /* 12.288 MHz */
-		bclk = WM9713_PCMBCLK_DIV_16; /* 512kHz */
-		break;
-	}
-
-	/* set codec DAI configuration */
-	ret = codec_dai->dai_ops.set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
-	/* set cpu DAI configuration */
-	ret = cpu_dai->dai_ops.set_fmt(cpu_dai, SND_SOC_DAIFMT_DSP_A |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
-	/* set codec BCLK division for sample rate */
-	ret = codec_dai->dai_ops.set_clkdiv(codec_dai, WM9713_PCMBCLK_DIV, bclk);
-	if (ret < 0)
-		return ret;
-
-	/* set codec PCM division for sample rate */
-	ret = codec_dai->dai_ops.set_clkdiv(codec_dai, WM9713_PCMCLK_DIV, pcmdiv);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static struct snd_soc_ops mioa701_voice_ops = {
-	.startup = mioa701_voice_startup,
-	.shutdown = mioa701_voice_shutdown,
-	.hw_params = mioa701_voice_hw_params,
-};
-
 static int test = 0;
-static int get_test(struct snd_kcontrol *kcontrol,
+static int mioa701_get_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = test;
+	printk("RJK: MioA701 mioa701_get_spk called\n");
 	return 0;
 }
 
-static int set_test(struct snd_kcontrol *kcontrol,
+static int mioa701_set_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
@@ -115,10 +46,9 @@ static int set_test(struct snd_kcontrol *kcontrol,
 	} else {
 
 	}
+	printk("RJK: MioA701 mioa701_set_spk called\n");
 	return 0;
 }
-
-static long mst_audio_suspend_mask;
 
 static int mioa701_spkfront_power(struct snd_soc_dapm_widget *w, int event)
 {
@@ -127,9 +57,11 @@ static int mioa701_spkfront_power(struct snd_soc_dapm_widget *w, int event)
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		val = codec->read(codec, AC97_EXTENDED_MID);
-		codec->write(codec, AC97_POWERDOWN, 0x0000);
+		printk("RJK: MioA701 front speaker on\n");
+		//codec->write(codec, AC97_POWERDOWN, 0x0000);
 	}
-		//else
+	else
+		printk("RJK: MioA701 front speaker off\n");
 		//asic3_set_gpio_out_b(&blueangel_asic3.dev, 1<<GPIOB_SPK_PWR_ON, 0);
 	return 0;
 }
@@ -160,21 +92,20 @@ static int mioa701_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const char* test_function[] = {"Off", "On"};
+static const char* spk_function[] = {"Off", "On"};
 static const struct soc_enum mioa701_enum[] = {
-	SOC_ENUM_SINGLE_EXT(2, test_function),
+	SOC_ENUM_SINGLE_EXT(2, spk_function),
 };
 
 static const struct snd_kcontrol_new mioa701_controls[] = {
-	SOC_ENUM_EXT("ATest Function", mioa701_enum[0], get_test, set_test),
+	SOC_ENUM_EXT("Speaker Function", mioa701_enum[0], mioa701_get_spk,
+		     mioa701_set_spk),
 };
 
 /* mioa701 machine dapm widgets */
 static const struct snd_soc_dapm_widget mioa701_dapm_widgets[] = {
-//	SND_SOC_DAPM_SPK("Speaker", mioa701_spkfront_power),
+	SND_SOC_DAPM_SPK("Front Speaker", mioa701_spkfront_power),
 	SND_SOC_DAPM_MIC("Mic 1", NULL),
-	SND_SOC_DAPM_MIC("Mic 2", NULL),
-	SND_SOC_DAPM_MIC("Mic 3", NULL),
 };
 
 /* example machine audio_mapnections */
@@ -190,6 +121,14 @@ static const char* audio_map[][3] = {
 	{"MIC2B", NULL, "Mic Bias"},
 	{"Mic Bias", NULL, "Mic 3"},
 
+	/* headphone connected to HPL, HPRo */
+	{"Headphone Jack", NULL, "HPL"},
+	{"Headphone Jack", NULL, "HPR"},
+
+	/* front speaker connected to HPL, OUT3 */
+	{"Front Speaker", NULL, "HPL"},
+	{"Front Speaker", NULL, "OUT3"},
+
 	{NULL, NULL, NULL},
 };
 
@@ -203,8 +142,9 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 	int i, err;
 
 	/* set up mioa701 codec pins */
-	snd_soc_dapm_set_endpoint(codec, "RXP", 0);
-	snd_soc_dapm_set_endpoint(codec, "RXN", 0);
+	snd_soc_dapm_set_endpoint(codec, "VOUTLHP", 0);
+	snd_soc_dapm_set_endpoint(codec, "VOUTRHP", 0);
+
 	//snd_soc_dapm_set_endpoint(codec, "MIC2", 0);
 
 	/* Add test specific controls */
