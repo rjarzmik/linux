@@ -137,10 +137,14 @@ static void pxa2xx_ac97_warm_reset(struct snd_ac97 *ac97)
 #ifdef CONFIG_PXA27x
 	/* warm reset broken on Bulverde,
 	   so manually keep AC97 reset high */
+#ifdef USE_GPIO113
 	pxa_gpio_mode(113 | GPIO_OUT | GPIO_DFLT_HIGH);
 	udelay(10);
+#endif
 	GCR |= GCR_WARM_RST;
+#ifdef USE_GPIO113
 	pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
+#endif
 	udelay(500);
 #else
 	GCR |= GCR_WARM_RST | GCR_PRIRDY_IEN | GCR_SECRDY_IEN;
@@ -272,7 +276,9 @@ static int pxa2xx_ac97_resume(struct platform_device *pdev,
 	pxa_gpio_mode(GPIO29_SDATA_IN_AC97_MD);
 #ifdef CONFIG_PXA27x
 	/* Use GPIO 113 as AC97 Reset on Bulverde */
+#ifdef USE_GPIO113
 	pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
+#endif
 #endif
 	pxa_set_cken(CKEN2_AC97, 1);
 	return 0;
@@ -297,7 +303,9 @@ static int pxa2xx_ac97_probe(struct platform_device *pdev)
 	pxa_gpio_mode(GPIO29_SDATA_IN_AC97_MD);
 #ifdef CONFIG_PXA27x
 	/* Use GPIO 113 as AC97 Reset on Bulverde */
+#ifdef USE_GPIO113
 	pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
+#endif
 #endif
 	pxa_set_cken(CKEN2_AC97, 1);
 	return 0;
