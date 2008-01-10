@@ -175,64 +175,6 @@ static struct platform_device mioa701_gpio_keys = {
 	.id   = -1,
 };
 
-/**
- * SDIO/MMC Card controller
- */
-static int mioa701_mci_init(struct device *dev, irq_handler_t detect_int, void *data)
-{
-	int err;
-  
-	/*
-	* setup GPIO
-	*/
-	pxa_gpio_mode(92 | GPIO_ALT_FN_1_OUT);    // MMDAT<0>
-	pxa_gpio_mode(109 | GPIO_ALT_FN_1_OUT);   // MMDAT<1>
-	pxa_gpio_mode(110 | GPIO_ALT_FN_1_OUT);   // MMDAT<2> MMCCS<0>
-	pxa_gpio_mode(111 | GPIO_ALT_FN_1_OUT);   // MMDAT<3> MMCCS<1>
-	pxa_gpio_mode(112 | GPIO_ALT_FN_1_OUT);   // MMCMD
-	pxa_gpio_mode(32 | GPIO_ALT_FN_2_OUT);    // MMCLK
-
-	/* enable RE/FE interrupt on card insertion and removal */
-	GRER0 |= 1 << MIOA701_SDIO_INSERT;
-	GFER0 |= 1 << MIOA701_SDIO_INSERT;
-  
-	err = request_irq(gpio_to_irq(MIOA701_SDIO_INSERT), detect_int,
-		IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-		"MMC card detect", data);
-	if (err) {
-		printk(KERN_ERR "mioa701_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-static void mioa701_mci_setpower(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data* p_d = dev->platform_data;
-	if ((1 << vdd) & p_d->ocr_mask)
-		gpio_set_value(MIOA701_SDIO_EN, 1);    // enable SDIO slot power
-	else
-		gpio_set_value(MIOA701_SDIO_EN, 0);    // disable SDIO slot power
-}
-
-static int mioa701_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(MIOA701_SDIO_RO);
-}
-
-static void mioa701_mci_exit(struct device *dev, void *data)
-{
-	free_irq(gpio_to_irq(MIOA701_SDIO_INSERT), data);
-}
-
-static struct pxamci_platform_data mioa701_mci_info = {
-	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34,
-	.init     = mioa701_mci_init,
-	.get_ro   = mioa701_mci_get_ro,
-	.setpower = mioa701_mci_setpower,
-	.exit     = mioa701_mci_exit,
-};
 
 
 /* 
@@ -354,7 +296,6 @@ static void __init mioa701_init(void)
 
         platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	pxa_set_mci_info(&mioa701_mci_info);
 	mioa701_ll_pm_init();
 	asm("mov %0, pc":"=r"(tmp)); pc = tmp;
 	asm("mov %0, sp":"=r"(tmp)); sp = tmp;
