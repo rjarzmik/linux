@@ -46,6 +46,8 @@
 #include "../generic.h"
 #include "mioa701.h"
 
+extern void mioa701_ll_pm_init(void);
+
 /**
  * LCD Screen and Backlight
  */
@@ -107,34 +109,6 @@ static struct platform_device mioa701_backlight = {
 	.dev = {
 		.platform_data = &mioa701_backlight_info,
 	},
-};
-
-/**
- * USB Client Controller
- */
-
-static int mioa701_udc_is_connected(void)
-{
-	return gpio_get_value(MIOA701_USB_DETECT) == 0;
-}
-
-static void mioa701_udc_command(int cmd) {
-	switch (cmd) {
-	case PXA2XX_UDC_CMD_DISCONNECT:
-		printk("UDC disconnected.\n");
-		break;
-	case PXA2XX_UDC_CMD_CONNECT:
-		printk("UDC connect.\n");
-		break;
-	default:
-		printk("_udc_control: unknown command (0x%x)!\n", cmd);
-		break;
-	}
-}
-
-static struct pxa2xx_udc_mach_info mioa701_udc_info __initdata = {
-	.udc_is_connected 	= mioa701_udc_is_connected,
-	.udc_command      	= mioa701_udc_command,
 };
 
 /**
@@ -336,9 +310,12 @@ static struct platform_device mioa701_gps = {
 /* Leds */
 static struct platform_device mioa701_led = {
         .name   = "mioa701-leds",
-        .id     = -1,
 };
 
+/* Power Managment */
+static struct platform_device mioa701_pm = {
+        .name   = "mioa701-pm",
+};
 
 static void __init mioa701_map_io(void)
 {
@@ -349,18 +326,26 @@ static void __init mioa701_map_io(void)
 	pxa_set_stuart_info(&mioa701_pxa_gps_funcs);
 }
 
+static struct platform_device mioa701_udc = { 
+	.name = "mioa701_udc",
+};
+
+
 static struct platform_device *devices[] __initdata = {
 	&mioa701_pxa_keyboard,
 	&mioa701_gpio_keys,
         &mioa701_backlight,
+	&mioa701_udc,
         &mioa701_phone,
         &mioa701_bt,
         &mioa701_gps,
         &mioa701_led,
+	&mioa701_pm,
 };
 
 static void __init mioa701_init(void)
 {
+	u32 tmp, pc, sp, mmu;
 	set_pxa_fb_info(&mioa701_pxafb_info);
 
 	/* XXX: does this turns on USB ? */
@@ -369,8 +354,12 @@ static void __init mioa701_init(void)
 
         platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	pxa_set_udc_info(&mioa701_udc_info);
 	pxa_set_mci_info(&mioa701_mci_info);
+	mioa701_ll_pm_init();
+	asm("mov %0, pc":"=r"(tmp)); pc = tmp;
+	asm("mov %0, sp":"=r"(tmp)); sp = tmp;
+	asm("mrc p15, 0, %0, c2, c0, 0":"=r"(tmp)); mmu = tmp;
+	printk ("RJK_init: pc=%p, sp=%p, mmu=%p\n", pc, sp, mmu);
 }
 
 MACHINE_START(MIOA701, "MIO A701")

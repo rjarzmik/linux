@@ -49,3 +49,9 @@ config MIOA701_LEDS
 	help
 	  Enables support for the Leds and Vibrator
 	  in the MIO A701.
+
+config MIOA701_UDC
+        bool "USB Device Controller support"
+        depends on MACH_MIOA701 && USB_PXA27X
+        help
+          Enables MIO A701 specific USB detection
