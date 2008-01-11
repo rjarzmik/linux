@@ -4,18 +4,19 @@
  *
  * This code is licenced under the GPLv2.
  *
- * MIO A701 reboot sequence is highly ROM dependant. From the one dissambled,
+ * MIO A701 reboot sequence is highly ROM dependant. From the one dissassembled,
  * this sequence is as follows :
  *   - disables interrupts
- *   - initialize SDRAM
+ *   - initialize SDRAM (self refresh RAM into active RAM)
  *   - initialize GPIOs (depends on value at 0xa020b020)
  *   - initialize coprossessors
- *   - if edge detect on PWR_SCL(GPIO3), the proceed to cold start
+ *   - if edge detect on PWR_SCL(GPIO3), then proceed to cold start
  *   - or if value at 0xa020b000 not equal to 0x0f0f0f0f, proceed to cold start
  *   - else do a resume, ie. jump to addr 0xa0100000
  */
 
-#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <asm/gpio.h>
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>
@@ -25,97 +26,46 @@
 
 #define RESUME_ENABLE_ADDR 0xa020b000
 #define RESUME_ENABLE_VAL  0x0f0f0f0f
-#define RESUME_GSM_ADDR    0xa020b020
+#define RESUME_BT_ADDR     0xa020b020
 #define RESUME_VECTOR_ADDR 0xa0100000
+#define BOOTSTRAP_WORDS    mioa701_bootstrap_lg/4
+
+/* Assembler externals mioa701_bootresume.S */
+extern u32 mioa701_bootstrap;
+extern u32 mioa701_jumpaddr;
+extern u32 mioa701_bootstrap_lg;
 
 
-#define nbu32_vibrate_nommu 23
-static u32 save_buffer[nbu32_vibrate_nommu+3];
+static u32 *save_buffer;
 
-unsigned long inresume = 0;
+static void install_bootstrap(unsigned long resume_addr)
+{
+	int i;
+	u32 *rom_bootstrap  = phys_to_virt(RESUME_VECTOR_ADDR);
+	u32 *src = &mioa701_bootstrap;
 
-static	u32 vibrate_nommu[] = {
-//00000060 <rjk_vibrate_nommu>:
-	0xe3a0120a, //        mov     r1, #-1610612736        ; 0xa0000000
-	0xe3811602, //        orr     r1, r1, #2097152        ; 0x200000
-	0xe3811a0b, //        orr     r1, r1, #45056  ; 0xb000
-	0xe3a00000, //        mov     r0, #0  ; 0x0
-	0xe5810000, //        str     r0, [r1]
-	0xea000001, //        b       80 <n_begin1>
+	mioa701_jumpaddr = resume_addr;
+	for (i=0; i < BOOTSTRAP_WORDS; i++)
+		rom_bootstrap[i] = src[i];
+}
 
-//00000078 <n_v1>:
-	0x00000000, //        .word   0x0
-	0x40e00004, //        .word   0x40e00004
 
-//00000080 <n_begin1>:
-	0xe3a01101, //        mov     r1, #1073741824 ; 0x40000000
-	0xe3811000, //        orr     r1, r1, #0      ; 0x0
-	0xe381160e, //        orr     r1, r1, #14680064       ; 0xe00000
-	0xe1a02001, //        mov     r2, r1
-	0xe281102c, //        add     r1, r1, #44     ; 0x2c
-	0xe2822014, //        add     r2, r2, #20     ; 0x14
-	0xe5910000, //        ldr     r0, [r1]
-	0xe3800701, //        orr     r0, r0, #262144 ; 0x40000
-
-//	0xe5810000, //        str     r0, [r1]
-	0xe3811000, //        orr     r1, r1, #0      ; 0x0
-
-	0xe5920000, //        ldr     r0, [r2]
-	0xe3800701, //        orr     r0, r0, #262144 ; 0x40000
-
-//	0xe5810000, //        str     r0, [r1]
-	0xe3811000, //        orr     r1, r1, #0      ; 0x0
-
-//000000b0 <n_jump>:
-	0xe51f0040, //        ldr     r0, [pc, #-64]  ; 78 <n_v1>
-	0xe1a0f000, //        mov     pc, r0
-	0xeafffffe, //        b       b8 <n_jump+0x8>
-};
-
-static	u32 vibrate_mmu[] = {
-	0xe3a0120f, //        mov     r1, #-268435456         ; 0xf0000000
-	0xe3811402, //        orr     r1, r1, #33554432       ; 0x02000000
-	0xe381160e, //        orr     r1, r1, #14680064       ; 0x00e00000
-	0xe1a02001, //        mov     r2, r1
-	0xe281102c, //        add     r1, r1, #44     ; 0x2c
-	0xe2822014, //        add     r2, r2, #20     ; 0x14
-	0xe5910000, //        ldr     r0, [r1]
-	0xe3800701, //        orr     r0, r0, #262144 ; 0x40000
-	0xe5810000, //        str     r0, [r1]
-	0xe5920000, //        ldr     r0, [r2]
-	0xe3800701, //        orr     r0, r0, #262144 ; 0x40000
-	0xe5810000, //        str     r0, [r1]
-	0xeafffffe, //        b       38 <m_l1+0x18>
-};
-
-void mioa701_pxa_ll_pm_suspend(unsigned long resume_addr)
+static void mioa701_pxa_ll_pm_suspend(unsigned long resume_addr)
 {
 	int i = 0;
-	u32 tmp, pc, sp, mmu;
 	u32 *mem_resume_vector  = phys_to_virt(RESUME_VECTOR_ADDR);
 	u32 *mem_resume_enabler = phys_to_virt(RESUME_ENABLE_ADDR);
-	u32 *mem_resume_gsm     = phys_to_virt(RESUME_GSM_ADDR);
+	u32 *mem_resume_bt      = phys_to_virt(RESUME_BT_ADDR);
 
-	/* RJK */
-	printk("RJK: ready to die in an endless loop\n");
-
-	for (i=0; i< nbu32_vibrate_nommu; i++)
+	for (i=0; i< BOOTSTRAP_WORDS; i++)
 		save_buffer[i] = mem_resume_vector[i];
 	save_buffer[i++] = *mem_resume_enabler;
-	save_buffer[i++] = *mem_resume_gsm;
+	save_buffer[i++] = *mem_resume_bt;
 
-	/* RJK */
-	asm("mov %0, pc":"=r"(tmp)); pc = tmp;
-	asm("mov %0, sp":"=r"(tmp)); sp = tmp;
-	asm("mrc p15, 0, %0, c2, c0, 0":"=r"(tmp)); mmu = tmp;
-	printk ("RJK_SUSPEND: cp=%p, sp=%p, mmu=%p\n", pc, sp, mmu);
-		
 	*mem_resume_enabler = RESUME_ENABLE_VAL;
-	*mem_resume_gsm     = 1;
+	*mem_resume_bt      = 0;
 
-	vibrate_nommu[6] = resume_addr;
-	for (i=0; i < nbu32_vibrate_nommu; i++)
-		mem_resume_vector[i] = vibrate_nommu[i];
+	install_bootstrap(resume_addr);
 }
 
 static void mioa701_pxa_ll_pm_resume(void)
@@ -123,23 +73,14 @@ static void mioa701_pxa_ll_pm_resume(void)
 	int i = 0;
 	u32 *mem_resume_vector  = phys_to_virt(RESUME_VECTOR_ADDR);
 	u32 *mem_resume_enabler = phys_to_virt(RESUME_ENABLE_ADDR);
-	u32 *mem_resume_gsm     = phys_to_virt(RESUME_GSM_ADDR);
+	u32 *mem_resume_bt      = phys_to_virt(RESUME_BT_ADDR);
 
-	for (i=0; i<nbu32_vibrate_nommu; i++)
+	for (i=0; i<BOOTSTRAP_WORDS; i++)
 		mem_resume_vector[i] = save_buffer[i];
 	*mem_resume_enabler = save_buffer[i++];
-	*mem_resume_gsm     = save_buffer[i++];
+	*mem_resume_bt      = save_buffer[i++];
 
 	OSCC |= OSCC_TOUT_EN | OSCC_OON;
-	inresume = 1;
- 	//printk("RJK: Are you ready to vibrate ?n");
-	/*__asm__ __volatile__ (
-	   "mov r1, %0\n"
-	   "mov pc, r1\n"
-	   :
-	   : "r" (vibrate_mmu)
-	   : "r1"); */
-	//gpio_set_value(GPIO_MIOA701_LED_nOrange, 0);
 }
 
 static struct pxa_ll_pm_ops mioa701_ll_pm_ops = {
@@ -147,7 +88,66 @@ static struct pxa_ll_pm_ops mioa701_ll_pm_ops = {
 	.resume  = mioa701_pxa_ll_pm_resume,
 };
 
-void mioa701_ll_pm_init(void) {
-	printk("RJK: suspend under work ... \n");
+static int mioa701_pm_probe(struct platform_device *dev)
+{
+	return 0;
+}
+
+static int mioa701_pm_remove(struct platform_device *dev)
+{
+	return 0;
+}
+
+static int mioa701_pm_suspend(struct platform_device *dev, pm_message_t state)
+{
+	PWER |=   PWER_GPIO0 
+		| PWER_GPIO1; /* reset */
+	// haret: PWER = 0x8010e801 (WERTC | WEUSIM | WE15 | WE14 | WE13 | WE11 | WE0
+	// haret: PSSR = 0x00000005
+	// haret: PRER = 0x0000e001 (RE15 | RE14 | RE13 | RE0)
+	PGSR0 = 0x02b0401a;
+	PGSR1 = 0x02525c96;
+	PGSR2 = 0x054d2000;
+	PGSR3 = 0x007e038c;
+
+	/* 3.6864 MHz oscillator power-down enable */
+	//PCFR  = 0x000004f1; // PCFR_FVC | PCFR_DCEN || PCFR_PI2CEN | PCFR_GPREN | PCFR_OPDE
+	PCFR = PCFR_OPDE | PCFR_PI2CEN | PCFR_GPROD | PCFR_GPR_EN;
+
+	PSLR  = 0xff100000; /* SYSDEL=125ms, PWRDEL=125ms, PSLR_SL_ROD=1 */
+
+	return 0;
+}
+
+static int mioa701_pm_resume(struct platform_device *dev)
+{
+	return 0;
+}
+
+static struct platform_driver mioa701_pm = {
+        .driver = {
+		.name = "mioa701-pm",
+        },
+	.probe = mioa701_pm_probe,
+	.remove = mioa701_pm_remove,
+	.suspend = mioa701_pm_suspend,
+	.resume = mioa701_pm_resume,
+};
+
+int mioa701_suspend_init(void)
+{
+	save_buffer = kmalloc(mioa701_bootstrap_lg+2*sizeof(u32), GFP_KERNEL);
+	if (!save_buffer)
+		return -ENOMEM;
 	pxa_pm_set_ll_ops(&mioa701_ll_pm_ops);
+        return platform_driver_register(&mioa701_pm);
+}
+
+void mioa701_suspend_exit(void)
+{
+	platform_driver_unregister(&mioa701_pm);
+	if (save_buffer)
+		kfree(save_buffer);
+	printk(KERN_CRIT "Unregistering mioa701 suspend will hang next"
+	       "resume !!!\n");
 }

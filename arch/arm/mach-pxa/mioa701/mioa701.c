@@ -287,7 +287,6 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init mioa701_init(void)
 {
-	u32 tmp, pc, sp, mmu;
 	set_pxa_fb_info(&mioa701_pxafb_info);
 
 	/* XXX: does this turns on USB ? */
@@ -295,12 +294,6 @@ static void __init mioa701_init(void)
 	gpio_set_value(MIOA701_USB_EN1, 1);
 
         platform_add_devices(devices, ARRAY_SIZE(devices));
-
-	mioa701_ll_pm_init();
-	asm("mov %0, pc":"=r"(tmp)); pc = tmp;
-	asm("mov %0, sp":"=r"(tmp)); sp = tmp;
-	asm("mrc p15, 0, %0, c2, c0, 0":"=r"(tmp)); mmu = tmp;
-	printk ("RJK_init: pc=%p, sp=%p, mmu=%p\n", pc, sp, mmu);
 }
 
 MACHINE_START(MIOA701, "MIO A701")
