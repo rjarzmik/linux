@@ -17,9 +17,9 @@
 #include <asm/arch/serial.h>
 #include "mioa701.h"
 
+extern struct platform_pxa_serial_funcs mioa701_bt_funcs;
 
-static void
-mioa701_bt_configure( int state )
+static void mioa701_bt_configure(int state)
 {
 	int tries;
 
@@ -31,7 +31,7 @@ mioa701_bt_configure( int state )
 
 	case PXA_UART_CFG_POST_STARTUP:
 		/* pre-serial-up hardware configuration */
-		gpio_set_value(GPIO_NR_MIOA701_BT_ON, 1);
+		gpio_set_value(MIO_GPIO_BT_ON, 1);
 
 		/*
 		 * BRF6150's RTS goes low when firmware is ready
@@ -39,17 +39,17 @@ mioa701_bt_configure( int state )
 		 */
 		tries = 0;
 		do {
-			mdelay(10);
+			msleep(10);
 		} while ((BTMSR & MSR_CTS) == 0 && tries++ < 50);
-                try_module_get(THIS_MODULE);
+		try_module_get(THIS_MODULE);
 		break;
 
 	case PXA_UART_CFG_PRE_SHUTDOWN:
-		gpio_set_value(GPIO_NR_MIOA701_BT_ON, 0);
+		gpio_set_value(MIO_GPIO_BT_ON, 0);
 		break;
 
 	case PXA_UART_CFG_POST_SHUTDOWN:
-                module_put(THIS_MODULE);
+		module_put(THIS_MODULE);
 	default:
 		break;
 	}
@@ -57,55 +57,48 @@ mioa701_bt_configure( int state )
 
 
 static int
-mioa701_bt_probe( struct platform_device *pdev )
+mioa701_bt_probe(struct platform_device *pdev)
 {
-	struct mioa701_bt_funcs *funcs = pdev->dev.platform_data;
-
 	/* configure bluetooth UART */
-	pxa_gpio_mode( GPIO_NR_MIOA701_BT_RXD_MD );
-	pxa_gpio_mode( GPIO_NR_MIOA701_BT_TXD_MD );
-	pxa_gpio_mode( GPIO_NR_MIOA701_BT_UART_CTS_MD );
-	pxa_gpio_mode( GPIO_NR_MIOA701_BT_UART_RTS_MD );
-	pxa_gpio_mode( GPIO_NR_MIOA701_BT_ON | GPIO_OUT );
-
-	funcs->configure = mioa701_bt_configure;
-
+	pxa_gpio_mode(MIO_GPIO_BT_RXD_MD);
+	pxa_gpio_mode(MIO_GPIO_BT_TXD_MD);
+	pxa_gpio_mode(MIO_GPIO_BT_CTS_MD);
+	pxa_gpio_mode(MIO_GPIO_BT_RTS_MD);
+	pxa_gpio_mode(MIO_GPIO_BT_ON | GPIO_OUT);
 	return 0;
 }
 
-static int
-mioa701_bt_remove( struct platform_device *pdev )
+static int mioa701_bt_remove(struct platform_device *pdev)
 {
-	struct mioa701_bt_funcs *funcs = pdev->dev.platform_data;
-
-	funcs->configure = NULL;
-
 	return 0;
 }
 
 static struct platform_driver bt_driver = {
 	.driver = {
-		.name     = "mioa701-bt",
+		.name	  = "mioa701-bt",
 	},
-	.probe    = mioa701_bt_probe,
-	.remove   = mioa701_bt_remove,
+	.probe	  = mioa701_bt_probe,
+	.remove	  = mioa701_bt_remove,
 };
 
-static int __init
-mioa701_bt_init( void )
+static int __init mioa701_bt_init(void)
 {
 	printk(KERN_NOTICE "mioa701 Bluetooth Driver\n");
+	mioa701_bt_funcs.configure = mioa701_bt_configure;
+	pxa_set_btuart_info(&mioa701_bt_funcs);
+
 	return platform_driver_register( &bt_driver );
 }
 
-static void __exit
-mioa701_bt_exit( void )
+static void __exit mioa701_bt_exit(void)
 {
+	pxa_set_btuart_info(NULL);
+	mioa701_bt_funcs.configure = NULL;
 	platform_driver_unregister( &bt_driver );
 }
 
-module_init( mioa701_bt_init );
-module_exit( mioa701_bt_exit );
+module_init(mioa701_bt_init);
+module_exit(mioa701_bt_exit);
 
 MODULE_AUTHOR("Robert Jarzmik");
 MODULE_DESCRIPTION("mioa701 Bluetooth Support Driver");

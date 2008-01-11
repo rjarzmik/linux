@@ -32,7 +32,7 @@ static void mioa701_udc_command(int cmd)
 
 static int mioa701_udc_is_connected(void)
 {
-	return gpio_get_value(MIOA701_USB_DETECT) == 0;
+	return gpio_get_value(MIO_GPIO_USB_DETECT) == 0;
 }
 
 static struct pxa2xx_udc_mach_info mioa701_udc_info __initdata = {

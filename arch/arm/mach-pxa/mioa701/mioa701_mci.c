@@ -29,18 +29,18 @@ static int mioa701_mci_init(struct device *dev, irq_handler_t detect_int,
 	/*
 	 * setup GPIO
 	 */
-	pxa_gpio_mode(92 | GPIO_ALT_FN_1_OUT);    // MMDAT<0>
-	pxa_gpio_mode(109 | GPIO_ALT_FN_1_OUT);   // MMDAT<1>
-	pxa_gpio_mode(110 | GPIO_ALT_FN_1_OUT);   // MMDAT<2> MMCCS<0>
-	pxa_gpio_mode(111 | GPIO_ALT_FN_1_OUT);   // MMDAT<3> MMCCS<1>
-	pxa_gpio_mode(112 | GPIO_ALT_FN_1_OUT);   // MMCMD
-	pxa_gpio_mode(32 | GPIO_ALT_FN_2_OUT);    // MMCLK
+	pxa_gpio_mode(GPIO92_MMCDAT0_MD);
+	pxa_gpio_mode(GPIO109_MMCDAT1_MD);
+	pxa_gpio_mode(GPIO110_MMCDAT2_MD);
+	pxa_gpio_mode(GPIO111_MMCDAT3_MD);
+	pxa_gpio_mode(GPIO112_MMCCMD_MD);
+	pxa_gpio_mode(GPIO32_MMCCLK_MD);
 
 	/* enable RE/FE interrupt on card insertion and removal */
-	GRER0 |= 1 << MIOA701_SDIO_INSERT;
-	GFER0 |= 1 << MIOA701_SDIO_INSERT;
+	GRER0 |= 1 << MIO_GPIO_SDIO_INSERT;
+	GFER0 |= 1 << MIO_GPIO_SDIO_INSERT;
   
-	err = request_irq(gpio_to_irq(MIOA701_SDIO_INSERT), detect_int,
+	err = request_irq(gpio_to_irq(MIO_GPIO_SDIO_INSERT), detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
 	if (err) {
@@ -56,19 +56,19 @@ static void mioa701_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 	if ((1 << vdd) & p_d->ocr_mask)
-		gpio_set_value(MIOA701_SDIO_EN, 1);    // enable SDIO slot power
+		gpio_set_value(MIO_GPIO_SDIO_EN, 1);    // enable SDIO slot power
 	else
-		gpio_set_value(MIOA701_SDIO_EN, 0);    // disable SDIO slot power
+		gpio_set_value(MIO_GPIO_SDIO_EN, 0);    // disable SDIO slot power
 }
 
 static int mioa701_mci_get_ro(struct device *dev)
 {
-	return gpio_get_value(MIOA701_SDIO_RO);
+	return gpio_get_value(MIO_GPIO_SDIO_RO);
 }
 
 static void mioa701_mci_exit(struct device *dev, void *data)
 {
-	free_irq(gpio_to_irq(MIOA701_SDIO_INSERT), data);
+	free_irq(gpio_to_irq(MIO_GPIO_SDIO_INSERT), data);
 }
 
 static struct pxamci_platform_data mioa701_mci_info = {

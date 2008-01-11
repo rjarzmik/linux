@@ -180,72 +180,42 @@ static struct platform_device mioa701_gpio_keys = {
 /* 
  * Bluetooth
  */
-static struct mioa701_bt_funcs bt_funcs;
-
-static void
-mioa701_bt_configure( int state )
-{
-	if (bt_funcs.configure != NULL)
-		bt_funcs.configure( state );
-}
-
-static struct platform_pxa_serial_funcs mioa701_pxa_bt_funcs = {
-        .configure = mioa701_bt_configure,
-};
+struct platform_pxa_serial_funcs mioa701_bt_funcs;
+EXPORT_SYMBOL(mioa701_bt_funcs);
 
 static struct platform_device mioa701_bt = {
 	.name = "mioa701-bt",
 	.id = -1,
 	.dev = {
-		.platform_data = &bt_funcs,
+		.platform_data = &mioa701_bt_funcs,
 	},
 };
 
 /*
  * Phone
  */
-static struct mioa701_phone_funcs phone_funcs;
-
-static void
-mioa701_phone_configure( int state )
-{
-	if (phone_funcs.configure != NULL)
-		phone_funcs.configure( state );
-}
-
-static struct platform_pxa_serial_funcs mioa701_pxa_phone_funcs = {
-        .configure = mioa701_phone_configure,
-};
+struct platform_pxa_serial_funcs mioa701_phone_funcs;
+EXPORT_SYMBOL(mioa701_phone_funcs);
 
 static struct platform_device mioa701_phone = {
 	.name = "mioa701-phone",
 	.id = -1,
 	.dev = {
-		.platform_data = &phone_funcs,
+		.platform_data = &mioa701_phone_funcs,
 	},
 };
 
 /*
  * GPS
  */
-static struct mioa701_gps_funcs gps_funcs;
-
-static void
-mioa701_gps_configure( int state )
-{
-	if (gps_funcs.configure != NULL)
-		gps_funcs.configure( state );
-}
-
-static struct platform_pxa_serial_funcs mioa701_pxa_gps_funcs = {
-        .configure = mioa701_gps_configure,
-};
+struct platform_pxa_serial_funcs mioa701_gps_funcs;
+EXPORT_SYMBOL(mioa701_gps_funcs);
 
 static struct platform_device mioa701_gps = {
 	.name = "mioa701-gps",
 	.id = -1,
 	.dev = {
-		.platform_data = &gps_funcs,
+		.platform_data = &mioa701_gps_funcs,
 	},
 };
 
@@ -258,15 +228,6 @@ static struct platform_device mioa701_led = {
 static struct platform_device mioa701_pm = {
         .name   = "mioa701-pm",
 };
-
-static void __init mioa701_map_io(void)
-{
-	pxa_map_io();
-
-        pxa_set_ffuart_info(&mioa701_pxa_phone_funcs);
-	pxa_set_btuart_info(&mioa701_pxa_bt_funcs);
-	pxa_set_stuart_info(&mioa701_pxa_gps_funcs);
-}
 
 static struct platform_device mioa701_udc = { 
 	.name = "mioa701_udc",
@@ -290,8 +251,8 @@ static void __init mioa701_init(void)
 	set_pxa_fb_info(&mioa701_pxafb_info);
 
 	/* XXX: does this turns on USB ? */
-	gpio_set_value(MIOA701_USB_EN0, 1);
-	gpio_set_value(MIOA701_USB_EN1, 1);
+	gpio_set_value(MIO_GPIO_USB_EN0, 1);
+	gpio_set_value(MIO_GPIO_USB_EN1, 1);
 
         platform_add_devices(devices, ARRAY_SIZE(devices));
 }
@@ -300,7 +261,7 @@ MACHINE_START(MIOA701, "MIO A701")
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
-	.map_io		= &mioa701_map_io,
+	.map_io		= &pxa_map_io,
 	.init_irq	= &pxa_init_irq,
 	.init_machine	= mioa701_init,
 	.timer		= &pxa_timer,

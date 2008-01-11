@@ -16,8 +16,9 @@
 
 #include "mioa701.h"
 
-static void
-mioa701_gps_configure( int state )
+extern struct platform_pxa_serial_funcs mioa701_gps_funcs;
+
+static void mioa701_gps_configure(int state)
 {
 	//printk( KERN_NOTICE "mioa701 configure gps: %d\n", state );
 	switch (state) {
@@ -43,26 +44,18 @@ mioa701_gps_configure( int state )
 
 
 static int
-mioa701_gps_probe( struct platform_device *dev )
+mioa701_gps_probe(struct platform_device *dev)
 {
-	struct mioa701_gps_funcs *funcs = dev->dev.platform_data;
-
 	/* configure gps UART */
-	pxa_gpio_mode( GPIO_NR_MIOA701_GPS_UART_RXD );
-	pxa_gpio_mode( GPIO_NR_MIOA701_GPS_UART_TXD );
-
-	funcs->configure = mioa701_gps_configure;
+	pxa_gpio_mode(MIO_GPIO_GPS_RXD_MD);
+	pxa_gpio_mode(MIO_GPIO_GPS_TXD_MD);
 
 	return 0;
 }
 
 static int
-mioa701_gps_remove( struct platform_device *dev )
+mioa701_gps_remove(struct platform_device *dev)
 {
-	struct mioa701_gps_funcs *funcs = dev->dev.platform_data;
-
-	funcs->configure = NULL;
-
 	return 0;
 }
 
@@ -74,21 +67,23 @@ static struct platform_driver gps_driver = {
 	.remove   = mioa701_gps_remove,
 };
 
-static int __init
-mioa701_gps_init( void )
+static int __init mioa701_gps_init(void)
 {
 	printk(KERN_NOTICE "mioa701 Gps Driver\n");
+	mioa701_gps_funcs.configure = mioa701_gps_configure;
+	pxa_set_stuart_info(&mioa701_gps_funcs);
 	return platform_driver_register( &gps_driver );
 }
 
-static void __exit
-mioa701_gps_exit( void )
+static void __exit mioa701_gps_exit(void)
 {
+	pxa_set_stuart_info(NULL);
+	mioa701_gps_funcs.configure = NULL;
 	platform_driver_unregister( &gps_driver );
 }
 
-module_init( mioa701_gps_init );
-module_exit( mioa701_gps_exit );
+module_init(mioa701_gps_init);
+module_exit(mioa701_gps_exit);
 
 MODULE_AUTHOR("Robert Jarzmik");
 MODULE_DESCRIPTION("MIO A701 GPS Support Driver");
