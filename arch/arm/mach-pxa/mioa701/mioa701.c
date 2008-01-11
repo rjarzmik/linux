@@ -20,8 +20,6 @@
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
-#include <linux/power_supply.h>
-#include <linux/wm97xx.h>
 
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
@@ -32,21 +30,13 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/bitfield.h>
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/udc.h>
 #include <asm/arch/serial.h>
 #include <asm/arch/pxa27x_keyboard.h>
 #include <asm/arch/pxafb.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/audio.h>
 
 #include "../generic.h"
 #include "mioa701.h"
-
-extern void mioa701_ll_pm_init(void);
 
 /**
  * LCD Screen and Backlight
@@ -249,10 +239,6 @@ static struct platform_device *devices[] __initdata = {
 static void __init mioa701_init(void)
 {
 	set_pxa_fb_info(&mioa701_pxafb_info);
-
-	/* XXX: does this turns on USB ? */
-	gpio_set_value(MIO_GPIO_USB_EN0, 1);
-	gpio_set_value(MIO_GPIO_USB_EN1, 1);
 
         platform_add_devices(devices, ARRAY_SIZE(devices));
 }

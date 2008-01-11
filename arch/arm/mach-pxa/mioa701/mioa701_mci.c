@@ -81,6 +81,10 @@ static struct pxamci_platform_data mioa701_mci_info = {
 
 static int __init mioa701_mcimod_init(void)
 {
+	/* XXX: does this turns on USB ? */
+	gpio_set_value(MIO_GPIO_USB_EN0, 1);
+	gpio_set_value(MIO_GPIO_USB_EN1, 1);
+
 	pxa_set_mci_info(&mioa701_mci_info);
 	return 0;
 }

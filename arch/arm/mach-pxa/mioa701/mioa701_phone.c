@@ -41,7 +41,7 @@ static void mioa701_phone_configure(int state)
 
 		tries = 0;
 		do {
-			mdelay(10);
+			msleep(10);
 		} while ( (FFMSR & MSR_CTS) && (tries++ < 300) );
 		if (tries >= 300) {
 			printk("MioA701 phone: expect garbage at GSM start.\n");
