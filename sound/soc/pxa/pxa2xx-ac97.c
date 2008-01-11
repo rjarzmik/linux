@@ -37,9 +37,6 @@ static DEFINE_MUTEX(car_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(gsr_wq);
 static volatile long gsr_bits;
 
-//Robert Jarzmik: very dirty trick, wait for mail exchange with official maintainer
-//#undef CONFIG_PXA27x
-
 /*
  * Beware PXA27x bugs:
  *
