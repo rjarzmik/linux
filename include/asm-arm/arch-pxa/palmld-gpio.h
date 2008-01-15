@@ -1,0 +1,11 @@
+/* Palm LifeDrive GPIOs */
+#define GPIO_PALMLD_USB_DETECT			3
+#define GPIO_PALMLD_POWER_DETECT		4
+
+#define GPIO_PALMLD_HOTSYNC_BUTTON_N	10
+#define GPIO_PALMLD_POWER_SWITCH		11
+
+#define GPIO_PALMLD_EARPHONE_DETECT 	13
+
+#define GPIO_PALMLD_LOCK_SWITCH			11	/* keypad lock */
+

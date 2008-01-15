@@ -1,0 +1,8 @@
+menuconfig MACH_XSCALE_PALMLD
+	bool "Palm LifeDrive"
+	select PXA27x
+	help
+		Say Y here if you intend to run this kernel on a
+		Palm LifeDrive. Currently there is only basic support
+		for this PDA.
+

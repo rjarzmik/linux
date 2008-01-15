@@ -1,0 +1,55 @@
+menu HTC_HW6X00
+
+config MACH_HTCBEETLES
+	bool "HTC Beetles (hPaq hw65xx)"
+	select PXA27x
+	select BOARD_IRQ_MAP_BIG
+	select KEYBOARD_GPIO
+	select KEYBOARD_PXA27x
+	help
+		HTC Beetles (iPAQ hw651x) support.
+
+config MACH_HW6900
+	bool "HTC Sable (hPaq hw69xx)"
+	select PXA27x
+	select BOARD_IRQ_MAP_BIG
+	select KEYBOARD_GPIO
+	select KEYBOARD_PXA27x
+	help
+		HTC Sable (iPAQ hw691x) support.
+
+config HTCSABLE_LCD
+	tristate "HTC Beetles/Sable LCD"
+	depends on ( MACH_HW6900 || MACH_HTCBEETLES ) && HTC_ASIC3 && LCD_CLASS_DEVICE
+	help
+		This driver provides support for changing power and brightness
+		on HTC Sable LCD display.
+
+
+config HTCSABLE_BACKLIGHT
+	bool "HTC Beetles/Sable Backlight"
+	depends on ( MACH_HW6900 || MACH_HTCBEETLES ) && HTC_ASIC3 && BACKLIGHT_CLASS_DEVICE
+	help
+		This driver provides support for changing power and brightness
+		on HTC Sable LCD backlight.
+
+config HTCSABLE_ROM
+	bool "HTC Beetles/Sable ROM"
+	depends on ( MACH_HW6900 || MACH_HTCBEETLES ) && HTC_ASIC3 && MTD
+	help
+		This driver provides access to devices' ROM
+		(where IPL bootloader) is stored.
+
+config HTCSABLE_BT
+	bool "HTC Beetles/Sable Bluetooth"
+	depends on ( MACH_HW6900 || MACH_HTCBEETLES ) && HTC_ASIC3 && BT
+	help
+		This driver provides support for Bluetooth module.
+
+config HTCSABLE_PHONE
+	bool "HTC Beetles/Sable Phone"
+	depends on ( MACH_HW6900 || MACH_HTCBEETLES ) && HTC_ASIC3
+	help
+		This driver provides support for Phone module.
+
+endmenu

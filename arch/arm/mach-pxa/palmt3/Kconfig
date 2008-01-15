@@ -1,0 +1,6 @@
+menuconfig MACH_T3XSCALE
+	bool "Palm Tungsten T3"
+	select PXA25x
+	help
+	  This enables support for Palm Tungsten T3 handheld.
+
