@@ -1028,9 +1028,6 @@ int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
 		return -EIO;
 
 	for (i = 2; i < ARRAY_SIZE(wm9713_reg) << 1; i+=2) {
-		if (i == AC97_POWERDOWN || i == AC97_EXTENDED_MID ||
-		    i == AC97_EXTENDED_MSTATUS || i > 0x66)
-			continue;
 		cache[i>>1] = ac97_read(codec, i);
 	}
 	
