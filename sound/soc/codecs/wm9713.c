@@ -1014,6 +1014,9 @@ EXPORT_SYMBOL_GPL(wm9713_dai);
 
 int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
 {
+	int i;
+	u16 *cache = codec->reg_cache;
+
 	if (try_warm && soc_ac97_ops.warm_reset) {
 		soc_ac97_ops.warm_reset(codec->ac97);
 		if (!(ac97_read(codec, 0) & 0x8000))
@@ -1023,6 +1026,14 @@ int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
 	soc_ac97_ops.reset(codec->ac97);
 	if (ac97_read(codec, 0) & 0x8000)
 		return -EIO;
+
+	for (i = 2; i < ARRAY_SIZE(wm9713_reg) << 1; i+=2) {
+		if (i == AC97_POWERDOWN || i == AC97_EXTENDED_MID ||
+		    i == AC97_EXTENDED_MSTATUS || i > 0x66)
+			continue;
+		cache[i>>1] = ac97_read(codec, i);
+	}
+	
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm9713_reset);
