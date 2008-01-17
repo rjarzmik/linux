@@ -154,11 +154,11 @@ void setup_muxers(struct snd_soc_codec *codec, const struct mio_mixes_t mixes[])
 	int pos = 0;
 	struct snd_kcontrol *kctl;
 	struct snd_ctl_elem_value ucontrol;
-	char mname[32];
+	char mname[44];
 
 	while (mixes[pos].mixname) {
-		memset(mname, 0, 32);
-		strncpy(mname, mixes[pos].mixname, 31);
+		memset(mname, 0, 44);
+		strncpy(mname, mixes[pos].mixname, 43);
 		kctl = mioa701_kctrl_byname(codec, mname);
 		memset(&ucontrol, 0, sizeof(ucontrol));
 		if (kctl) {
