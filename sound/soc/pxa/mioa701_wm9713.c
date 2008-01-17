@@ -23,13 +23,14 @@
 #include "pxa2xx-ac97.h"
 
 #define GPIO22_SSP2SYSCLK_MD	(22 | GPIO_ALT_FN_2_OUT)
+#define AC97_GPIO_PULL		0x58
 /* define the scenarios */
 #define MIO_AUDIO_OFF			0
 #define MIO_GSM_CALL_AUDIO_HANDSET	1
 #define MIO_GSM_CALL_AUDIO_HEADSET	2
 #define MIO_GSM_CALL_AUDIO_HANDSFREE	3
 #define MIO_GSM_CALL_AUDIO_BLUETOOTH	4
-#define MIO_STEREO_TO_SPEAKERS		5
+#define MIO_STEREO_TO_SPEAKER		5
 #define MIO_STEREO_TO_HEADPHONES	6
 #define MIO_CAPTURE_HANDSET		7
 #define MIO_CAPTURE_HEADSET		8
@@ -42,8 +43,8 @@ static int mio_scenario = MIO_AUDIO_OFF;
 static int phone_stream_start(struct snd_soc_codec *codec);
 static int phone_stream_stop(struct snd_soc_codec *codec);
 
-// ### Debug awfull stuff ###
 struct mio_mixes_t {
+	
 	char *mixname;
 	int  val;
 };
@@ -99,58 +100,53 @@ static const struct mio_mixes_t mixes_reset_all[] = {
 
 static const struct mio_mixes_t mixes_gsm_call_handset[] = {
 	/* GSM Out to Front Speaker HPL Path */
-	{ "Left HP Mixer PC Beep Playback Switch", 1 },
-	{ "Left Headphone Out Mux", 2 }, // wm9713_spk_gpa = "Headphone"
+	{ "Left HP Mixer PC Beep Playback Switch", 1 }, // PCBeep->Headphone Mix
+	{ "Left Headphone Out Mux", 2 },		// Headphone Mixer->HPL
 	/* GSM Out to Front Speaker Out3 Path */
-	{ "Speaker Mixer MonoIn Playback Switch" , 1 },
-	{ "DAC Inv Mux 1", 2 }, // wm9713_dac_inv = "Speaker"
-	{ "Out 3 Mux", 2 },     // wm9713_out3_pga = "Inv 1"
+	{ "Speaker Mixer MonoIn Playback Switch" , 1 }, // MonoIn->Speaker Mixer
+	{ "DAC Inv Mux 1", 2 },				// Speaker Mix -> Inv1
+	{ "Out 3 Mux", 2 },				// Inv1 -> Out3
 	/* MIC1 to GSM In */
-	{ "Mic A Source", 0 },  // wm9713_mic_select = "Mic 1"
-	{ "Mic 1 Sidetone Switch", 1 }, // wm9713_mono_mixer_controls = "Mic 1..."
-	{ "Mono Out Mux", 2 },  // wm9713_mono_pga = "Mono"
-	{ "Mono Mixer PC Beep Playback Switch", 1 },
+	{ "Mic A Source", 0 },				// Mic1 -> MICA
+	{ "Mic 1 Sidetone Switch", 1 },			// MICA -> PCBeep
+	{ "Mono Out Mux", 2 },				// Mono Mixer -> Mono
+	{ "Mono Mixer PC Beep Playback Switch", 1 },	// PCBeep -> Mono Mixer
 	{ NULL, 0 }
 };
 
 static const struct mio_mixes_t mixes_gsm_call_handsfree[] = {
 	/* GSM Out to Rear Speaker SPKL Path */
-	{ "Speaker Mixer PC Beep Playback Switch", 1 },
-	{ "DAC Inv Mux 1", 2 }, // wm9713_dac_inv = "Speaker"
-	{ "Left Speaker Out Mux", 3 }, // wm9713_spk_pga = "Speaker"
+	{ "Speaker Mixer PC Beep Playback Switch", 1 }, // PCBeep->Speaker Mix
+	{ "DAC Inv Mux 1", 2 },				// Speaker Mixer -> Inv1
+	{ "Left Speaker Out Mux", 3 },			// Speaker Mixer -> SPKL
 	/* GSM Out to Rear Speaker SPKR Path */
-	{ "Speaker Mixer MonoIn Playback Switch" , 1 },
-	{ "Right Speaker Out Mux", 3 }, // wm9713_spk_pga = "Speaker"
+	{ "Speaker Mixer MonoIn Playback Switch" , 1 },	// MonoIn->Speaker Mix
+	{ "Right Speaker Out Mux", 3 },			// Speaker Mixer -> SPKR
 	/* MIC1 to GSM In */
-	{ "Mic A Source", 0 },  // wm9713_mic_select = "Mic 1"
-	{ "Mic 1 Sidetone Switch", 1 }, // wm9713_mono_mixer_controls = "Mic 1..."
-	{ "Mono Out Mux", 2 },  // wm9713_mono_pga = "Mono"
-	{ "Mono Mixer PC Beep Playback Switch", 1 },
+	{ "Mic A Source", 0 },				// MIC1 -> MICA
+	{ "Mic 1 Sidetone Switch", 1 },			// MICA -> Mono Mixer
+	{ "Mono Out Mux", 2 },				// Mono Mixer -> MONO
+	{ "Mono Mixer PC Beep Playback Switch", 1 },	// PCBeep -> Mono Mixer
 	{ NULL, 0 }
 };
 
-static const struct mio_mixes_t mixes_stereo_to_speakers[] = {
-	{"Left HP Mixer PCM Playback Switch", 1},  // PCM -> Headphone Mixer
-	{"Right HP Mixer PCM Playback Switch", 1}, // PCM -> Headphone Mixer
-	{"Left Speaker Out Mux", 3 },		// Headphone Mixer -> SPKL
-	{"Right Speaker Out Mux", 3 },		// Headphone Mixer -> SPKR
-	{"Left Headphone Out Mux", 3 },		// Headphone Mixer -> HPL
-	{"Right Headphone Out Mux", 3 },	// Headphone Mixer -> HPR
-	{ "Out 3 Mux", 2 },			// Inv1 -> OUT3
+static const struct mio_mixes_t mixes_stereo_to_rearspeaker[] = {
+	{"Speaker Mixer PCM Playback Switch", 1},	// PCM -> Speaker Mixer
+	{"DAC Inv Mux 1", 2 },				// Inv1 -> SPKL
+	{"Right Speaker Out Mux", 2 },			// Headphone Mixer -> SPKR
+	{"Left Headphone Out Mux", 3 },			// Headphone Mixer -> HPL
+	{"Right Headphone Out Mux", 3 },		// Headphone Mixer -> HPR
+	{"Out 3 Mux", 2 },				// Inv1 -> OUT3
 };
 
 struct snd_kcontrol *mioa701_kctrl_byname(struct snd_soc_codec *codec, char *n)
 {
-	struct snd_kcontrol *kctl;
 	struct snd_ctl_elem_id rid;
-	struct snd_card *card = codec->card;
 
 	memset(&rid, 0, sizeof(rid));
 	rid.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	strncpy(rid.name, n, sizeof(rid.name));
-	kctl = snd_ctl_find_id(card, &rid);
-
-	return kctl;
+	return snd_ctl_find_id(codec->card, &rid);
 }
 
 void setup_muxers(struct snd_soc_codec *codec, const struct mio_mixes_t mixes[])
@@ -167,143 +163,58 @@ void setup_muxers(struct snd_soc_codec *codec, const struct mio_mixes_t mixes[])
 		memset(&ucontrol, 0, sizeof(ucontrol));
 		if (kctl) {
 			kctl->get(kctl, &ucontrol);
-			printk ("RJK: changing val of %s from %d to %d\n",
-				kctl->id.name,
-				ucontrol.value.enumerated.item[0],
-				mixes[pos].val);
 			ucontrol.value.enumerated.item[0] = mixes[pos].val;
 			kctl->put(kctl, &ucontrol);
 		}
 		pos++;
 	}
-
-	/* Debug controls
-	struct snd_ctl_elem_id rid;
-	struct snd_card *card = codec->card;
-	list_for_each_entry(kctl, &card->controls, list) {
-		printk("Control : %s\n", kctl->id.name);
-	}
-	*/
 }
 
+static void rearspk_amp_on(struct snd_soc_codec *codec)
+{
+	short reg;
 
+	/* Activate GPIO8 */
+	reg = codec->read(codec, AC97_GPIO_CFG);
+	codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
+	reg = codec->read(codec, AC97_GPIO_PULL);
+	codec->write(codec, AC97_GPIO_PULL, reg | 0x8000);
+}
+
+static void rearspk_amp_off(struct snd_soc_codec *codec)
+{
+	short reg;
+
+	/* Deactivate GPIO8 */
+	reg = codec->read(codec, AC97_GPIO_CFG);
+	codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
+	reg = codec->read(codec, AC97_GPIO_PULL);
+	codec->write(codec, AC97_GPIO_PULL, reg & ~0x8000);
+}
+
+#define NB_ENDP sizeof(endpn)/sizeof(char *)
 static int set_scenario_endpoints(struct snd_soc_codec *codec, int scenario)
 {
-	/* endps[] = Front Speaker, Rear Speaker, GSM Line Out, GSM Line In,
-	             Headset Mic, Front Mic */
-	int *endps;
-	static const int typ_endps[][6] = {
-		{ 0, 0, 0, 0, 0, 0 }, // MIO_AUDIO_OFF
-		{ 1, 0, 1, 1, 0, 1 }, // MIO_GSM_CALL_AUDIO_HANDSET
-		{ 0, 1, 1, 1, 0, 1 }, // MIO_GSM_CALL_AUDIO_HANDSFREE
-		{ 0, 0, 1, 1, 1, 0 }, // MIO_GSM_CALL_AUDIO_HEADSET
-		{ 0, 0, 1, 1, 0, 0 }, // MIO_GSM_CALL_AUDIO_BLUETOOTH
-		{ 1, 1, 0, 0, 0, 0 }, // MIO_STEREO_TO_SPEAKERS
-		{ 0, 0, 0, 0, 0, 0 }, // MIO_STEREO_TO_HEADPHONES
-		{ 0, 0, 0, 0, 0, 1 }, // MIO_CAPTURE_HANDSET
-		{ 0, 0, 0, 0, 1, 0 }, // MIO_CAPTURE_HEADSET
-		{ 0, 0, 0, 0, 0, 0 }, // MIO_CAPTURE_BLUETOOTH
+	static char *endpn[] = { "Front Speaker", "Rear Speaker", 
+				 "GSM Line Out", "GSM Line In",
+				 "Headset Mic", "Front Mic", "Headset" };
+	static const int typ_endps[][NB_ENDP] = {
+		{ 0, 0, 0, 0, 0, 0, 0 }, // MIO_AUDIO_OFF
+		{ 1, 0, 1, 1, 0, 1, 0 }, // MIO_GSM_CALL_AUDIO_HANDSET
+		{ 0, 0, 1, 1, 1, 0, 1 }, // MIO_GSM_CALL_AUDIO_HEADSET
+		{ 0, 1, 1, 1, 0, 1, 0 }, // MIO_GSM_CALL_AUDIO_HANDSFREE
+		{ 0, 0, 1, 1, 0, 0, 0 }, // MIO_GSM_CALL_AUDIO_BLUETOOTH
+		{ 0, 1, 0, 0, 0, 0, 0 }, // MIO_STEREO_TO_SPEAKER
+		{ 0, 0, 0, 0, 0, 0, 1 }, // MIO_STEREO_TO_HEADPHONES
+		{ 0, 0, 0, 0, 0, 1, 0 }, // MIO_CAPTURE_HANDSET
+		{ 0, 0, 0, 0, 1, 0, 0 }, // MIO_CAPTURE_HEADSET
+		{ 0, 0, 0, 0, 0, 0, 0 }, // MIO_CAPTURE_BLUETOOTH
 	};
+	const int *endps = typ_endps[scenario];
+	int i;
 
-	endps = typ_endps[scenario];
-/*
-	switch(scenario) {
-	case MIO_AUDIO_OFF:
-		endps = { 0, 0, 0, 0, 0, 0 };
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 0);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   0);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     0);
-		break;
-	case MIO_GSM_CALL_AUDIO_HANDSET:
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 1);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   1);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   0);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     1);
-		break;
-	case MIO_GSM_CALL_AUDIO_HANDSFREE:
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 0);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   1);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   0);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     1);
-		break;
-	case MIO_GSM_CALL_AUDIO_HEADSET:
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 0);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   1);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   1);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     0);
-		break;
-	case MIO_GSM_CALL_AUDIO_BLUETOOTH:
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 0);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   1);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   0);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     0);
-		break;
-	case MIO_STEREO_TO_SPEAKERS:
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 1);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  1);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   0);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     0);
-		break;
-	case MIO_STEREO_TO_HEADPHONES:
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 0);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   0);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     0);
-		break;
-	case MIO_CAPTURE_HANDSET:
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 0);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   0);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     1);
-		break;
-	case MIO_CAPTURE_HEADSET:
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 0);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   1);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     0);
-		break;
-	case MIO_CAPTURE_BLUETOOTH:
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 0);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   0);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     0);
-		break;
-	default:
-		snd_soc_dapm_set_endpoint(codec, "Front Speaker", 0);
-		snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  0);
-		snd_soc_dapm_set_endpoint(codec, "GSM Line In",   0);
-		snd_soc_dapm_set_endpoint(codec, "Headset Mic",   0);
-		snd_soc_dapm_set_endpoint(codec, "Front Mic",     0);
-	}
-*/
-	snd_soc_dapm_set_endpoint(codec, "Front Speaker", endps[0]);
-	snd_soc_dapm_set_endpoint(codec, "Rear Speaker",  endps[1]);
-	snd_soc_dapm_set_endpoint(codec, "GSM Line Out",  endps[2]);
-	snd_soc_dapm_set_endpoint(codec, "GSM Line In",   endps[3]);
-	snd_soc_dapm_set_endpoint(codec, "Headset Mic",   endps[4]);
-	snd_soc_dapm_set_endpoint(codec, "Front Mic",     endps[5]);
+	for (i=0; i < NB_ENDP; i++)
+		snd_soc_dapm_set_endpoint(codec, endpn[i], endps[i]);
 	snd_soc_dapm_sync_endpoints(codec);
 
 	return 0;
@@ -321,9 +232,6 @@ static int set_scenario(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 
-	/* Debug */
-	mioa701_kctrl_byname(codec, "Mono Out Mux");
-
 	if (mio_scenario == ucontrol->value.integer.value[0])
 		return 0;
 
@@ -335,21 +243,28 @@ static int set_scenario(struct snd_kcontrol *kcontrol,
 	case MIO_GSM_CALL_AUDIO_BLUETOOTH:
 	case MIO_GSM_CALL_AUDIO_HANDSFREE:
 		phone_stream_start(codec);
-	break;
+		break;
 	default:
 		phone_stream_stop(codec);
 		break;
 	}
+
+	setup_muxers(codec, mixes_reset_all);
 	switch (mio_scenario) {
-	case MIO_AUDIO_OFF:
-		setup_muxers(codec, mixes_reset_all);
-	case MIO_STEREO_TO_SPEAKERS:
-		setup_muxers(codec, mixes_stereo_to_speakers);
+	case MIO_STEREO_TO_SPEAKER:
+		setup_muxers(codec, mixes_stereo_to_rearspeaker);
+		rearspk_amp_on(codec);
+		break;
 	case MIO_GSM_CALL_AUDIO_HANDSET:
 		setup_muxers(codec, mixes_gsm_call_handset);
+		rearspk_amp_off(codec);
 		break;
 	case MIO_GSM_CALL_AUDIO_HANDSFREE:
 		setup_muxers(codec, mixes_gsm_call_handsfree);
+		rearspk_amp_on(codec);
+		break;
+	default:
+		rearspk_amp_off(codec);
 		break;
 	}
 	return 1;
@@ -395,7 +310,7 @@ static const char *mio_scenarios[] = {
 	"GSM Headset",
 	"GSM Handsfree",
 	"GSM Bluetooth",
-	"Speakers",
+	"PCM Speaker",
 	"Headphones",
 	"Capture Handset",
 	"Capture Headset",
@@ -414,6 +329,7 @@ static const struct snd_kcontrol_new mioa701_controls[] = {
 static const struct snd_soc_dapm_widget mioa701_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Front Speaker", NULL),
 	SND_SOC_DAPM_SPK("Rear Speaker", NULL),
+	SND_SOC_DAPM_MIC("Headset", NULL),
 	SND_SOC_DAPM_LINE("GSM Line Out", NULL),
 	SND_SOC_DAPM_LINE("GSM Line In", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
@@ -422,7 +338,6 @@ static const struct snd_soc_dapm_widget mioa701_dapm_widgets[] = {
 
 /* example machine audio_mapnections */
 static const char* audio_map[][3] = {
-
 	/* Call Mic */
 	{"Mic Bias", NULL, "Call Mic"},
 	{"MIC1", NULL, "Front Mic"},
@@ -433,8 +348,8 @@ static const char* audio_map[][3] = {
 	{"GSM Line In", NULL, "MONO"},
 
 	/* headphone connected to HPL, HPR */
-	{"Headphone Jack", NULL, "HPL"},
-	{"Headphone Jack", NULL, "HPR"},
+	{"Headset", NULL, "HPL"},
+	{"Headset", NULL, "HPR"},
 
 	/* front speaker connected to HPL, OUT3 */
 	{"Front Speaker", NULL, "HPL"},
@@ -478,9 +393,6 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 	}
 
 	snd_soc_dapm_sync_endpoints(codec);
-
-	/* Debug */
-	mioa701_kctrl_byname(codec, "Left Speaker Out Mux");
 
 	return 0;
 }
@@ -554,4 +466,3 @@ module_exit(mioa701_exit);
 MODULE_AUTHOR("Robert Jarzmik (rjarzmik@yahoo.fr)");
 MODULE_DESCRIPTION("ALSA SoC WM9713 MIO A701");
 MODULE_LICENSE("GPL");
-
