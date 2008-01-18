@@ -1,13 +1,10 @@
 /*
  * Hardware definitions for MIO A701
  *
- * Copyright (c) 2007 Damien Tournoud
- *                    Robert Jarzmik
+ * 2008-1-1 Robert Jarzmik
+ *          inspired by initial work of Damien Tournoud
  *
- * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
- * preserved in its entirety in all copies and derived works.
- *
+ * This code is licenced under the GPLv2.
  */
 
 #include <linux/kernel.h>
@@ -30,7 +27,6 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa-regs.h>
 #include <asm/arch/serial.h>
 #include <asm/arch/pxa27x_keyboard.h>
 #include <asm/arch/pxafb.h>
@@ -38,10 +34,15 @@
 #include "../generic.h"
 #include "mioa701.h"
 
-/**
- * LCD Screen and Backlight
- */
+#define MIO_SIMPLE_DEV(var, strname, pdata)	\
+static struct platform_device var = {		\
+        .name   = strname,			\
+	.dev = {				\
+		.platform_data = pdata,		\
+	},					\
+};
 
+/* LCD Screen and Backlight */
 static void mioa701_backlight_set_intensity(int intensity)
 {
 	if (intensity > 0) {
@@ -91,14 +92,6 @@ static struct corgibl_machinfo mioa701_backlight_info = {
 	.default_intensity = 0x3ff,
 	.limit_mask = 0x0f,
 	.set_bl_intensity = mioa701_backlight_set_intensity,
-};
-
-static struct platform_device mioa701_backlight = {
-	.name = "corgi-bl",
-	.id = -1,
-	.dev = {
-		.platform_data = &mioa701_backlight_info,
-	},
 };
 
 /**
@@ -157,72 +150,27 @@ static struct gpio_keys_platform_data mioa701_gpio_keys_data = {
 	.nbuttons = ARRAY_SIZE(mioa701_button_table),
 };
 
-static struct platform_device mioa701_gpio_keys = {
-	.name = "gpio-keys",
-	.dev  = {
-		.platform_data = &mioa701_gpio_keys_data,
-	},
-	.id   = -1,
-};
-
-
-
-/* 
- * Bluetooth
- */
+/* Bluetooth */
 struct platform_pxa_serial_funcs mioa701_bt_funcs;
 EXPORT_SYMBOL(mioa701_bt_funcs);
 
-static struct platform_device mioa701_bt = {
-	.name = "mioa701-bt",
-	.id = -1,
-	.dev = {
-		.platform_data = &mioa701_bt_funcs,
-	},
-};
-
-/*
- * Phone
- */
+/* Phone */
 struct platform_pxa_serial_funcs mioa701_phone_funcs;
 EXPORT_SYMBOL(mioa701_phone_funcs);
 
-static struct platform_device mioa701_phone = {
-	.name = "mioa701-phone",
-	.id = -1,
-	.dev = {
-		.platform_data = &mioa701_phone_funcs,
-	},
-};
-
-/*
- * GPS
- */
+/* GPS */
 struct platform_pxa_serial_funcs mioa701_gps_funcs;
 EXPORT_SYMBOL(mioa701_gps_funcs);
 
-static struct platform_device mioa701_gps = {
-	.name = "mioa701-gps",
-	.id = -1,
-	.dev = {
-		.platform_data = &mioa701_gps_funcs,
-	},
-};
-
-/* Leds */
-static struct platform_device mioa701_led = {
-        .name   = "mioa701-leds",
-};
-
-/* Power Managment */
-static struct platform_device mioa701_pm = {
-        .name   = "mioa701-pm",
-};
-
-static struct platform_device mioa701_udc = { 
-	.name = "mioa701_udc",
-};
-
+/* Devices */
+MIO_SIMPLE_DEV(mioa701_backlight, "corgi-bl",      &mioa701_backlight_info)
+MIO_SIMPLE_DEV(mioa701_gpio_keys, "gpio-keys",     &mioa701_gpio_keys_data)
+MIO_SIMPLE_DEV(mioa701_phone,     "mioa701-phone", &mioa701_phone_funcs)
+MIO_SIMPLE_DEV(mioa701_bt,        "mioa701-bt",    &mioa701_bt_funcs)
+MIO_SIMPLE_DEV(mioa701_gps,       "mioa701-gps",   &mioa701_gps_funcs)
+MIO_SIMPLE_DEV(mioa701_udc,       "mioa701-udc",   NULL)
+MIO_SIMPLE_DEV(mioa701_pm,        "mioa701-pm",    NULL)
+MIO_SIMPLE_DEV(mioa701_led,       "mioa701-leds",  NULL)
 
 static struct platform_device *devices[] __initdata = {
 	&mioa701_pxa_keyboard,
@@ -252,4 +200,3 @@ MACHINE_START(MIOA701, "MIO A701")
 	.init_machine	= mioa701_init,
 	.timer		= &pxa_timer,
 MACHINE_END
-
