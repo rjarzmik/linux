@@ -9,6 +9,9 @@
 #include <linux/moduleparam.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
+#include <linux/workqueue.h>
 #include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -16,11 +19,13 @@
 #include <sound/soc-dapm.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/gpio.h>
 #include <asm/arch/audio.h>
 
 #include "../codecs/wm9713.h"
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-ac97.h"
+#include "../../../arch/arm/mach-pxa/mioa701/mioa701.h"
 
 #define GPIO22_SSP2SYSCLK_MD	(22 | GPIO_ALT_FN_2_OUT)
 #define AC97_GPIO_PULL		0x58
@@ -42,6 +47,9 @@ static int mio_scenario = MIO_AUDIO_OFF;
 
 static int phone_stream_start(struct snd_soc_codec *codec);
 static int phone_stream_stop(struct snd_soc_codec *codec);
+static int setup_jack_isr(struct platform_device *pdev);
+static void remove_jack_isr(struct platform_device *pdev);
+static void hpjack_toggle(struct work_struct *unused);
 
 struct mio_mixes_t {
 	
@@ -158,7 +166,7 @@ void setup_muxers(struct snd_soc_codec *codec, const struct mio_mixes_t mixes[])
 
 	while (mixes[pos].mixname) {
 		memset(mname, 0, 44);
-		strncpy(mname, mixes[pos].mixname, 43);
+		strncpy(mname, mixes[pos].mixname, 44);
 		kctl = mioa701_kctrl_byname(codec, mname);
 		memset(&ucontrol, 0, sizeof(ucontrol));
 		if (kctl) {
@@ -227,15 +235,9 @@ static int get_scenario(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int set_scenario(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+static void switch_mio_mode(struct snd_soc_codec *codec, int new_scenario)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-
-	if (mio_scenario == ucontrol->value.integer.value[0])
-		return 0;
-
-	mio_scenario = ucontrol->value.integer.value[0];
+	mio_scenario = new_scenario;
 	set_scenario_endpoints(codec, mio_scenario);
 	switch (mio_scenario) {
 	case MIO_GSM_CALL_AUDIO_HANDSET:
@@ -267,6 +269,17 @@ static int set_scenario(struct snd_kcontrol *kcontrol,
 		rearspk_amp_off(codec);
 		break;
 	}
+}
+
+static int set_scenario(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	if (mio_scenario == ucontrol->value.integer.value[0])
+		return 0;
+	
+	switch_mio_mode(codec, ucontrol->value.integer.value[0]);
 	return 1;
 }
 
@@ -296,11 +309,13 @@ static int mioa701_resume(struct platform_device *pdev)
 
 static int mioa701_probe(struct platform_device *pdev)
 {
+	setup_jack_isr(pdev);
 	return 0;
 }
 
 static int mioa701_remove(struct platform_device *pdev)
 {
+	remove_jack_isr(pdev);
 	return 0;
 }
 
@@ -362,11 +377,76 @@ static const char* audio_map[][3] = {
 	{NULL, NULL, NULL},
 };
 
-/*
- * This is an example machine initialisation for a wm9713 connected to a
- * Mainstone II. It is missing logic to detect hp/mic insertions and logic
- * to re-route the audio in such an event.
- */
+/* Headphone Jack functions */
+static struct snd_soc_codec *hpjack_codec = NULL;
+DECLARE_WORK(hpjack_wq, hpjack_toggle);
+
+static void hpjack_on(struct snd_soc_codec *codec)
+{
+	switch (mio_scenario) {
+	case MIO_GSM_CALL_AUDIO_HANDSET:
+	case MIO_GSM_CALL_AUDIO_HANDSFREE:
+		switch_mio_mode(codec, MIO_GSM_CALL_AUDIO_HEADSET);
+		break;
+	case MIO_STEREO_TO_SPEAKER:
+		switch_mio_mode(codec, MIO_STEREO_TO_HEADPHONES);
+		break;
+	}
+}
+
+static void hpjack_off(struct snd_soc_codec *codec)
+{
+	switch (mio_scenario) {
+	case MIO_GSM_CALL_AUDIO_HEADSET:
+		switch_mio_mode(codec, MIO_GSM_CALL_AUDIO_HANDSET);
+		break;
+	case MIO_STEREO_TO_HEADPHONES:
+		switch_mio_mode(codec, MIO_STEREO_TO_SPEAKER);
+		break;
+	}
+}
+
+static void hpjack_toggle(struct work_struct *unused)
+{
+	int val = gpio_get_value(MIO_GPIO_HPJACK_INSERT);
+
+	if (!hpjack_codec)
+		return;
+
+	if (val)
+		hpjack_on(hpjack_codec);
+	else
+		hpjack_off(hpjack_codec);
+}
+
+static irqreturn_t hpjack_isr(int irq, void *irq_desc)
+{
+	schedule_work(&hpjack_wq);
+	return IRQ_HANDLED;
+}
+
+static int setup_jack_isr(struct platform_device *pdev)
+{
+	int irq = gpio_to_irq(MIO_GPIO_HPJACK_INSERT);
+	int ret;
+
+	pxa_gpio_mode(MIO_GPIO_HPJACK_INSERT);
+	ret = request_irq(irq, hpjack_isr, 
+			  IRQF_DISABLED | IRQF_TRIGGER_LOW | IRQF_TRIGGER_HIGH,
+			  "hearphone jack",
+			  &hpjack_codec);
+	set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
+	return ret;
+}
+
+static void remove_jack_isr(struct platform_device *pdev)
+{
+	int irq = gpio_to_irq(MIO_GPIO_HPJACK_INSERT);
+
+	free_irq(irq, &hpjack_codec);
+	hpjack_codec = NULL;
+}
+
 static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 {
 	int i, err;
@@ -393,6 +473,7 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 	}
 
 	snd_soc_dapm_sync_endpoints(codec);
+	hpjack_codec = codec;
 
 	return 0;
 }
@@ -448,9 +529,12 @@ static int __init mioa701_init(void)
 	platform_set_drvdata(mioa701_snd_ac97_device, &mioa701_snd_ac97_devdata);
 	mioa701_snd_ac97_devdata.dev = &mioa701_snd_ac97_device->dev;
 
-	if((ret = platform_device_add(mioa701_snd_ac97_device)) != 0)
-		platform_device_put(mioa701_snd_ac97_device);
+	if ((ret = platform_device_add(mioa701_snd_ac97_device)) > 0)
+		goto devadderr;
 
+	platform_device_put(mioa701_snd_ac97_device);
+
+devadderr:
 	return ret;
 }
 

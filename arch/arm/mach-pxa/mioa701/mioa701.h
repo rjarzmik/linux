@@ -42,6 +42,7 @@
 
 /* SOUND */
 #define GPIO89_AC97_SYSCLK_MD			(89 | GPIO_ALT_FN_1_OUT)
+#define MIO_GPIO_HPJACK_INSERT		12
 
 /* LEDS */
 #define MIO_GPIO_LED_nBLUE		97
