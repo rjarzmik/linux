@@ -91,6 +91,7 @@ static const struct mio_mixes_t mixes_reset_all[] = {
 	{"Mono Mixer Bypass Playback Switch",  0},
 	{"Mono Mixer PCM Playback Switch",     0},
 	{"Mono Mixer Capture Mono Mux",        0},
+	{"Mono Mixer MonoIn Playback Switch",  0},
 
 	/* headphone muxers */
 	{"Left Headphone Out Mux", 0},
@@ -106,6 +107,21 @@ static const struct mio_mixes_t mixes_reset_all[] = {
 	{ NULL, 0 }
 };
 
+static const struct mio_mixes_t mixes_gsm_call_headset[] = {
+	/* GSM Out to Headset HPL Path */
+	{ "Left HP Mixer PC Beep Playback Switch", 1 }, // PCBeep->Headphone Mix
+	{ "Left Headphone Out Mux", 2 },		// Headphone Mixer->HPL
+	/* GSM Out to Headset HPR Path */
+	{ "Right HP Mixer MonoIn Playback Switch" , 1 }, //MonoIn->HP Mixer
+	{ "Right Headphone Out Mux", 2 },		// Headphone Mixer->HPR
+	/* MIC1 to GSM In */
+	{ "Mic A Source", 0 },				// Mic1 -> MICA
+	{ "Mono Mixer Mic 1 Sidetone", 1 },		// MICA -> Mono Mixer
+	{ "Mono Out Mux", 2 },				// Mono Mixer -> Mono
+	{ "Mono Mixer PC Beep Playback Switch", 1 },	// PCBeep -> Mono Mixer
+	{ NULL, 0 }
+};
+
 static const struct mio_mixes_t mixes_gsm_call_handset[] = {
 	/* GSM Out to Front Speaker HPL Path */
 	{ "Left HP Mixer PC Beep Playback Switch", 1 }, // PCBeep->Headphone Mix
@@ -115,10 +131,9 @@ static const struct mio_mixes_t mixes_gsm_call_handset[] = {
 	{ "DAC Inv Mux 1", 2 },				// Speaker Mix -> Inv1
 	{ "Out 3 Mux", 2 },				// Inv1 -> Out3
 	/* MIC1 to GSM In */
-	{ "Mic A Source", 0 },				// Mic1 -> MICA
-	{ "Mic 1 Sidetone Switch", 1 },			// MICA -> PCBeep
-	{ "Mono Out Mux", 2 },				// Mono Mixer -> Mono
-	{ "Mono Mixer PC Beep Playback Switch", 1 },	// PCBeep -> Mono Mixer
+	{ "Mic A Source", 0 },				// MIC1 -> MICA
+	{ "Mono Mixer Mic 1 Sidetone Switch", 1 },	// MICA -> Mono Mixer
+	{ "Mono Out Mux", 2 },				// Mono Mixer -> MONO
 	{ NULL, 0 }
 };
 
@@ -126,15 +141,14 @@ static const struct mio_mixes_t mixes_gsm_call_handsfree[] = {
 	/* GSM Out to Rear Speaker SPKL Path */
 	{ "Speaker Mixer PC Beep Playback Switch", 1 }, // PCBeep->Speaker Mix
 	{ "DAC Inv Mux 1", 2 },				// Speaker Mixer -> Inv1
-	{ "Left Speaker Out Mux", 3 },			// Speaker Mixer -> SPKL
+	{ "Left Speaker Out Mux", 4 },			// Inv1 -> SPKL
 	/* GSM Out to Rear Speaker SPKR Path */
 	{ "Speaker Mixer MonoIn Playback Switch" , 1 },	// MonoIn->Speaker Mix
 	{ "Right Speaker Out Mux", 3 },			// Speaker Mixer -> SPKR
 	/* MIC1 to GSM In */
 	{ "Mic A Source", 0 },				// MIC1 -> MICA
-	{ "Mic 1 Sidetone Switch", 1 },			// MICA -> Mono Mixer
+	{ "Mono Mixer Mic 1 Sidetone Switch", 1 },	// MICA -> Mono Mixer
 	{ "Mono Out Mux", 2 },				// Mono Mixer -> MONO
-	{ "Mono Mixer PC Beep Playback Switch", 1 },	// PCBeep -> Mono Mixer
 	{ NULL, 0 }
 };
 
@@ -164,18 +178,32 @@ void setup_muxers(struct snd_soc_codec *codec, const struct mio_mixes_t mixes[])
 	struct snd_ctl_elem_value ucontrol;
 	char mname[44];
 
+	struct snd_ctl_elem_id rid;
+	struct snd_card *card = codec->card;
+
 	while (mixes[pos].mixname) {
 		memset(mname, 0, 44);
-		strncpy(mname, mixes[pos].mixname, 44);
+		strncpy(mname, mixes[pos].mixname, 43);
 		kctl = mioa701_kctrl_byname(codec, mname);
 		memset(&ucontrol, 0, sizeof(ucontrol));
 		if (kctl) {
 			kctl->get(kctl, &ucontrol);
+			/* RJK debug to be removed
+			printk("setup_mixers: control : %s %d->%d\n", 
+			       kctl->id.name, ucontrol.value.enumerated.item[0],
+			       mixes[pos].val);
+			*/
 			ucontrol.value.enumerated.item[0] = mixes[pos].val;
 			kctl->put(kctl, &ucontrol);
 		}
 		pos++;
 	}
+	
+	/* RJK debug to be removed
+	list_for_each_entry(kctl, &codec->card->controls, list) {
+		printk("Control : %s\n", kctl->id.name);
+	}
+	*/
 }
 
 static void rearspk_amp_on(struct snd_soc_codec *codec)
@@ -239,6 +267,7 @@ static void switch_mio_mode(struct snd_soc_codec *codec, int new_scenario)
 {
 	mio_scenario = new_scenario;
 	set_scenario_endpoints(codec, mio_scenario);
+
 	switch (mio_scenario) {
 	case MIO_GSM_CALL_AUDIO_HANDSET:
 	case MIO_GSM_CALL_AUDIO_HEADSET:
@@ -265,6 +294,9 @@ static void switch_mio_mode(struct snd_soc_codec *codec, int new_scenario)
 		setup_muxers(codec, mixes_gsm_call_handsfree);
 		rearspk_amp_on(codec);
 		break;
+	case MIO_GSM_CALL_AUDIO_HEADSET:
+		setup_muxers(codec, mixes_gsm_call_headset);
+		rearspk_amp_off(codec);
 	default:
 		rearspk_amp_off(codec);
 		break;
@@ -294,28 +326,6 @@ static int phone_stream_stop(struct snd_soc_codec *codec)
 {
 	snd_soc_dapm_stream_event(codec, "AC97 HiFi", 
 				  SND_SOC_DAPM_STREAM_STOP);
-	return 0;
-}
-
-static int mioa701_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	return 0;
-}
-
-static int mioa701_resume(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static int mioa701_probe(struct platform_device *pdev)
-{
-	setup_jack_isr(pdev);
-	return 0;
-}
-
-static int mioa701_remove(struct platform_device *pdev)
-{
-	remove_jack_isr(pdev);
 	return 0;
 }
 
@@ -478,6 +488,30 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int mioa701_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	return 0;
+}
+
+static int mioa701_resume(struct platform_device *pdev)
+{
+	return 0;
+}
+
+static int mioa701_probe(struct platform_device *pdev)
+{
+	setup_jack_isr(pdev);
+	return 0;
+}
+
+static int mioa701_remove(struct platform_device *pdev)
+{
+	remove_jack_isr(pdev);
+	return 0;
+}
+
+/* Add some hook for wm9713 reset procedure to setup wm9713 registers */
+
 static struct snd_soc_dai_link mioa701_dai[] = {
 {
 	.name = "AC97",
@@ -550,3 +584,6 @@ module_exit(mioa701_exit);
 MODULE_AUTHOR("Robert Jarzmik (rjarzmik@yahoo.fr)");
 MODULE_DESCRIPTION("ALSA SoC WM9713 MIO A701");
 MODULE_LICENSE("GPL");
+
+/* Git AsoC v2 */
+/* git://opensource.wolfsonmicro.com/linux-2.6-asoc asoc-v2-dev */
