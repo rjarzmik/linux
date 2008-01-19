@@ -206,28 +206,6 @@ void setup_muxers(struct snd_soc_codec *codec, const struct mio_mixes_t mixes[])
 	*/
 }
 
-static void rearspk_amp_on(struct snd_soc_codec *codec)
-{
-	short reg;
-
-	/* Activate GPIO8 */
-	reg = codec->read(codec, AC97_GPIO_CFG);
-	codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
-	reg = codec->read(codec, AC97_GPIO_PULL);
-	codec->write(codec, AC97_GPIO_PULL, reg | 0x8000);
-}
-
-static void rearspk_amp_off(struct snd_soc_codec *codec)
-{
-	short reg;
-
-	/* Deactivate GPIO8 */
-	reg = codec->read(codec, AC97_GPIO_CFG);
-	codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
-	reg = codec->read(codec, AC97_GPIO_PULL);
-	codec->write(codec, AC97_GPIO_PULL, reg & ~0x8000);
-}
-
 #define NB_ENDP sizeof(endpn)/sizeof(char *)
 static int set_scenario_endpoints(struct snd_soc_codec *codec, int scenario)
 {
@@ -284,21 +262,21 @@ static void switch_mio_mode(struct snd_soc_codec *codec, int new_scenario)
 	switch (mio_scenario) {
 	case MIO_STEREO_TO_SPEAKER:
 		setup_muxers(codec, mixes_stereo_to_rearspeaker);
-		rearspk_amp_on(codec);
+		//rearspk_amp_on(codec);
 		break;
 	case MIO_GSM_CALL_AUDIO_HANDSET:
 		setup_muxers(codec, mixes_gsm_call_handset);
-		rearspk_amp_off(codec);
+		//rearspk_amp_off(codec);
 		break;
 	case MIO_GSM_CALL_AUDIO_HANDSFREE:
 		setup_muxers(codec, mixes_gsm_call_handsfree);
-		rearspk_amp_on(codec);
+		//rearspk_amp_on(codec);
 		break;
 	case MIO_GSM_CALL_AUDIO_HEADSET:
 		setup_muxers(codec, mixes_gsm_call_headset);
-		rearspk_amp_off(codec);
+		//rearspk_amp_off(codec);
 	default:
-		rearspk_amp_off(codec);
+		//rearspk_amp_off(codec);
 		break;
 	}
 }
@@ -359,6 +337,7 @@ static const struct snd_soc_dapm_widget mioa701_dapm_widgets[] = {
 	SND_SOC_DAPM_LINE("GSM Line In", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Front Mic", NULL),
+	SND_SOC_DAPM_PGA("Rear Speaker Amp", AC97_GPIO_PULL, 15, 1, NULL, 0),
 };
 
 /* example machine audio_mapnections */
@@ -381,8 +360,9 @@ static const char* audio_map[][3] = {
 	{"Front Speaker", NULL, "OUT3"},
 
 	/* front speaker connected to SPKL, SPKR */
-	{"Rear Speaker", NULL, "SPKL"},
-	{"Rear Speaker", NULL, "SPKR"},
+	{"Rear Speaker", NULL, "Rear Speaker"},
+	{"Rear Speaker Amp", NULL, "SPKL"},
+	{"Rear Speaker Amp", NULL, "SPKR"},
 
 	{NULL, NULL, NULL},
 };
@@ -481,6 +461,12 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 		snd_soc_dapm_connect_input(codec, audio_map[i][0], audio_map[i][1],
 			audio_map[i][2]);
 	}
+
+	unsigned short reg;
+
+	/* Prepare GPIO8 for rear speaker amplificator */
+	reg = codec->read(codec, AC97_GPIO_CFG);
+	codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
 
 	snd_soc_dapm_sync_endpoints(codec);
 	hpjack_codec = codec;
