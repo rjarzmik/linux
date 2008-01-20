@@ -41,6 +41,8 @@
 #define MIO_CAPTURE_HEADSET		8
 #define MIO_CAPTURE_BLUETOOTH		9
 
+extern int mioa701_master_init(struct snd_soc_codec *codec);
+extern void mioa701_master_change(int scenario);
 
 static struct snd_soc_machine mioa701;
 static int mio_scenario = MIO_AUDIO_OFF;
@@ -52,7 +54,6 @@ static void remove_jack_isr(struct platform_device *pdev);
 static void hpjack_toggle(struct work_struct *unused);
 
 struct mio_mixes_t {
-	
 	char *mixname;
 	int  val;
 };
@@ -153,12 +154,10 @@ static const struct mio_mixes_t mixes_gsm_call_handsfree[] = {
 };
 
 static const struct mio_mixes_t mixes_stereo_to_rearspeaker[] = {
-	{"Speaker Mixer PCM Playback Switch", 1},	// PCM -> Speaker Mixer
-	{"DAC Inv Mux 1", 2 },				// Inv1 -> SPKL
-	{"Right Speaker Out Mux", 2 },			// Headphone Mixer -> SPKR
-	{"Left Headphone Out Mux", 3 },			// Headphone Mixer -> HPL
-	{"Right Headphone Out Mux", 3 },		// Headphone Mixer -> HPR
-	{"Out 3 Mux", 2 },				// Inv1 -> OUT3
+	{ "Speaker Mixer PCM Playback Switch", 1},	// PCM -> Speaker Mixer
+	{ "DAC Inv Mux 1", 2 },				// Speaker Mixer -> Inv1
+	{ "Left Speaker Out Mux", 4 },			// Inv1 -> SPKL
+	{ "Right Speaker Out Mux", 3 },			// Speaker Mixer -> SPKR
 };
 
 struct snd_kcontrol *mioa701_kctrl_byname(struct snd_soc_codec *codec, char *n)
@@ -178,8 +177,8 @@ void setup_muxers(struct snd_soc_codec *codec, const struct mio_mixes_t mixes[])
 	struct snd_ctl_elem_value ucontrol;
 	char mname[44];
 
-	struct snd_ctl_elem_id rid;
-	struct snd_card *card = codec->card;
+	//struct snd_ctl_elem_id rid;
+	//struct snd_card *card = codec->card;
 
 	while (mixes[pos].mixname) {
 		memset(mname, 0, 44);
@@ -262,23 +261,20 @@ static void switch_mio_mode(struct snd_soc_codec *codec, int new_scenario)
 	switch (mio_scenario) {
 	case MIO_STEREO_TO_SPEAKER:
 		setup_muxers(codec, mixes_stereo_to_rearspeaker);
-		//rearspk_amp_on(codec);
 		break;
 	case MIO_GSM_CALL_AUDIO_HANDSET:
 		setup_muxers(codec, mixes_gsm_call_handset);
-		//rearspk_amp_off(codec);
 		break;
 	case MIO_GSM_CALL_AUDIO_HANDSFREE:
 		setup_muxers(codec, mixes_gsm_call_handsfree);
-		//rearspk_amp_on(codec);
 		break;
 	case MIO_GSM_CALL_AUDIO_HEADSET:
 		setup_muxers(codec, mixes_gsm_call_headset);
-		//rearspk_amp_off(codec);
 	default:
-		//rearspk_amp_off(codec);
 		break;
 	}
+
+	mioa701_master_change(mio_scenario);
 }
 
 static int set_scenario(struct snd_kcontrol *kcontrol,
@@ -440,6 +436,7 @@ static void remove_jack_isr(struct platform_device *pdev)
 static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 {
 	int i, err;
+	unsigned short reg;
 
 	/* initialize mioa701 codec pins */
 	set_scenario_endpoints(codec, mio_scenario);
@@ -451,6 +448,9 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 			return err;
 	}
 
+	/* Add Mio Masters */
+	mioa701_master_init(codec);
+
 	/* Add mioa701 specific widgets */
 	for(i = 0; i < ARRAY_SIZE(mioa701_dapm_widgets); i++) {
 		snd_soc_dapm_new_control(codec, &mioa701_dapm_widgets[i]);
@@ -461,8 +461,6 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 		snd_soc_dapm_connect_input(codec, audio_map[i][0], audio_map[i][1],
 			audio_map[i][2]);
 	}
-
-	unsigned short reg;
 
 	/* Prepare GPIO8 for rear speaker amplificator */
 	reg = codec->read(codec, AC97_GPIO_CFG);

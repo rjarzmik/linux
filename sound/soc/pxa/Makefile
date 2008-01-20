@@ -28,7 +28,7 @@ snd-soc-magician-objs := magician.o
 snd-soc-amesom-tlv320-objs := amesom_tlv320.o
 snd-soc-blueangel-objs := blueangel.o
 snd-soc-h5000-objs := h5000.o
-snd-soc-mioa701-objs := mioa701_wm9713.o
+snd-soc-mioa701-objs := mioa701_wm9713.o mioa701_masterctrl.o
 
 obj-$(CONFIG_SND_PXA2XX_SOC_CORGI) += snd-soc-corgi.o
 obj-$(CONFIG_SND_PXA2XX_SOC_MAINSTONE_WM8731) += snd-soc-mainstone-wm8731.o
