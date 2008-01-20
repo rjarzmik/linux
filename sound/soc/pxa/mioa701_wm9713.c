@@ -118,11 +118,9 @@ static const struct mio_mixes_t mixes_gsm_call_headset[] = {
 	/* GSM Out to Headset HPR Path */
 	{ "Right HP Mixer MonoIn Playback Switch" , 1 }, //MonoIn->HP Mixer
 	{ "Right Headphone Out Mux", 2 },		// Headphone Mixer->HPR
-	/* MIC1 to GSM In */
-	{ "Mic A Source", 0 },				// Mic1 -> MICA
-	{ "Mono Mixer Mic 1 Sidetone", 1 },		// MICA -> Mono Mixer
+	/* LineL to GSM In */
+	{ "Mono Mixer Bypass Playback Switch",  1},	// LineL -> MonoMixer
 	{ "Mono Out Mux", 2 },				// Mono Mixer -> Mono
-	{ "Mono Mixer PC Beep Playback Switch", 1 },	// PCBeep -> Mono Mixer
 	{ "Mono Playback Switch", 1},			// Unmute Mono Mixer
 	{ NULL, 0 }
 };
@@ -338,6 +336,10 @@ static const char* audio_map[][3] = {
 	/* Call Mic */
 	{"Mic Bias", NULL, "Front Mic"},
 	{"MIC1", NULL, "Mic Bias"},
+
+	/* Headset Mic */
+	{"LINEL", NULL, "Headset Mic"},
+	{"LINER", NULL, "Headset Mic"},
 
 	/* GSM Module */
 	{"MONOIN", NULL, "GSM Line Out"},
