@@ -84,6 +84,7 @@ static const struct mio_mixes_t mixes_reset_all[] = {
 	{"Speaker Mixer Bypass Playback Switch",  0},
 	{"Speaker Mixer PCM Playback Switch",     0},
 	{"Speaker Mixer MonoIn Playback Switch",  0},
+	{"Speaker Mixer Mic 1 Sidetone Switch",   0},
 
 	/* mono mixer */
 	{"Mono Mixer PC Beep Playback Switch", 0},
@@ -93,6 +94,8 @@ static const struct mio_mixes_t mixes_reset_all[] = {
 	{"Mono Mixer PCM Playback Switch",     0},
 	{"Mono Mixer Capture Mono Mux",        0},
 	{"Mono Mixer MonoIn Playback Switch",  0},
+	{"Mono Mixer Mic 1 Sidetone Switch",   0},
+	{"Mono Playback Switch",               0},
 
 	/* headphone muxers */
 	{"Left Headphone Out Mux", 0},
@@ -120,6 +123,7 @@ static const struct mio_mixes_t mixes_gsm_call_headset[] = {
 	{ "Mono Mixer Mic 1 Sidetone", 1 },		// MICA -> Mono Mixer
 	{ "Mono Out Mux", 2 },				// Mono Mixer -> Mono
 	{ "Mono Mixer PC Beep Playback Switch", 1 },	// PCBeep -> Mono Mixer
+	{ "Mono Playback Switch", 1},			// Unmute Mono Mixer
 	{ NULL, 0 }
 };
 
@@ -135,6 +139,7 @@ static const struct mio_mixes_t mixes_gsm_call_handset[] = {
 	{ "Mic A Source", 0 },				// MIC1 -> MICA
 	{ "Mono Mixer Mic 1 Sidetone Switch", 1 },	// MICA -> Mono Mixer
 	{ "Mono Out Mux", 2 },				// Mono Mixer -> MONO
+	{ "Mono Playback Switch", 1},			// Unmute Mono Mixer
 	{ NULL, 0 }
 };
 
@@ -150,6 +155,7 @@ static const struct mio_mixes_t mixes_gsm_call_handsfree[] = {
 	{ "Mic A Source", 0 },				// MIC1 -> MICA
 	{ "Mono Mixer Mic 1 Sidetone Switch", 1 },	// MICA -> Mono Mixer
 	{ "Mono Out Mux", 2 },				// Mono Mixer -> MONO
+	{ "Mono Playback Switch", 1},			// Unmute Mono Mixer
 	{ NULL, 0 }
 };
 
@@ -177,9 +183,6 @@ void setup_muxers(struct snd_soc_codec *codec, const struct mio_mixes_t mixes[])
 	struct snd_ctl_elem_value ucontrol;
 	char mname[44];
 
-	//struct snd_ctl_elem_id rid;
-	//struct snd_card *card = codec->card;
-
 	while (mixes[pos].mixname) {
 		memset(mname, 0, 44);
 		strncpy(mname, mixes[pos].mixname, 43);
@@ -197,12 +200,6 @@ void setup_muxers(struct snd_soc_codec *codec, const struct mio_mixes_t mixes[])
 		}
 		pos++;
 	}
-	
-	/* RJK debug to be removed
-	list_for_each_entry(kctl, &codec->card->controls, list) {
-		printk("Control : %s\n", kctl->id.name);
-	}
-	*/
 }
 
 #define NB_ENDP sizeof(endpn)/sizeof(char *)
@@ -339,8 +336,8 @@ static const struct snd_soc_dapm_widget mioa701_dapm_widgets[] = {
 /* example machine audio_mapnections */
 static const char* audio_map[][3] = {
 	/* Call Mic */
-	{"Mic Bias", NULL, "Call Mic"},
-	{"MIC1", NULL, "Front Mic"},
+	{"Mic Bias", NULL, "Front Mic"},
+	{"MIC1", NULL, "Mic Bias"},
 
 	/* GSM Module */
 	{"MONOIN", NULL, "GSM Line Out"},
@@ -465,6 +462,10 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 	/* Prepare GPIO8 for rear speaker amplificator */
 	reg = codec->read(codec, AC97_GPIO_CFG);
 	codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
+
+	/* Prepare MIC input */
+	reg = codec->read(codec, AC97_3D_CONTROL);
+	codec->write(codec, AC97_3D_CONTROL, reg | 0xc000);
 
 	snd_soc_dapm_sync_endpoints(codec);
 	hpjack_codec = codec;

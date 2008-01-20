@@ -194,14 +194,14 @@ static struct kctl_master_t miomastervol[] = {
 	MVOL2("Headphone Playback Volume", 0,	//MIO_GSM_CALL_AUDIO_HANDSET 
 	      "Out3 Playback Volume", 0),
 	MVOL2("Headphone Playback Volume", 0,	//MIO_GSM_CALL_AUDIO_HEADSET
-	     NULL, 0),
+	      "Headphone Playback Volume", 1),
 	MVOL2("Speaker Playback Volume", 0,	//MIO_GSM_CALL_AUDIO_HANDSFREE
-	     NULL, 0),
+	      "Speaker Playback Volume", 1),
 	MVOL2_DEFAULT,				//MIO_GSM_CALL_AUDIO_BLUETOOTH
 	MVOL2("Speaker Playback Volume", 0,	//MIO_STEREO_TO_SPEAKER
-	     NULL, 0),
+	      "Speaker Playback Volume", 1),
 	MVOL2("Headphone Playback Volume", 0,	//MIO_STEREO_TO_HEADPHONES
-	     NULL, 0),
+	      "Headphone Playback Volume", 1),
 	MVOL2_DEFAULT,				//MIO_CAPTURE_HANDSET
 	MVOL2_DEFAULT,				//MIO_CAPTURE_HEADSET
 	MVOL2_DEFAULT,				//MIO_CAPTURE_BLUETOOTH
@@ -212,14 +212,14 @@ static struct kctl_master_t miomastermute[] = {
 	MMUTE2("Headphone Playback Switch", 0,	//MIO_GSM_CALL_AUDIO_HANDSET 
 	      "Out3 Playback Switch", 0),
 	MMUTE2("Headphone Playback Switch", 0,	//MIO_GSM_CALL_AUDIO_HEADSET
-	     NULL, 0),
+	       "Headphone Playback Switch", 1),
 	MMUTE2("Speaker Playback Switch", 0,	//MIO_GSM_CALL_AUDIO_HANDSFREE
-	     NULL, 0),
+	       "Speaker Playback Switch", 1),
 	MMUTE2_DEFAULT,				//MIO_GSM_CALL_AUDIO_BLUETOOTH
 	MMUTE2("Speaker Playback Switch", 0,	//MIO_STEREO_TO_SPEAKER
-	     NULL, 0),
+	       "Speaker Playback Switch", 1),
 	MMUTE2("Headphone Playback Switch", 0,	//MIO_STEREO_TO_HEADPHONES
-	     NULL, 0),
+	       "Headphone Playback Switch", 1),
 	MMUTE2_DEFAULT,				//MIO_CAPTURE_HANDSET
 	MMUTE2_DEFAULT,				//MIO_CAPTURE_HEADSET
 	MMUTE2_DEFAULT,				//MIO_CAPTURE_BLUETOOTH
