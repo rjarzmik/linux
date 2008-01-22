@@ -10,10 +10,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/interrupt.h>
 #include <linux/fb.h>
 #include <linux/corgi_bl.h>
-#include <linux/irq.h>
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
@@ -24,7 +22,6 @@
 #include <asm/gpio.h>
 
 #include <asm/mach-types.h>
-#include <asm/mach/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/serial.h>
@@ -59,6 +56,13 @@ static void mioa701_backlight_set_intensity(int intensity)
 	}
 }
 
+static struct corgibl_machinfo mioa701_backlight_info = {
+	.max_intensity = 0x3ff,
+	.default_intensity = 0x3ff,
+	.limit_mask = 0x0f,
+	.set_bl_intensity = mioa701_backlight_set_intensity,
+};
+
 /*
  * LTM0305A776C LCD panel timings
  *
@@ -87,13 +91,6 @@ static struct pxafb_mach_info mioa701_pxafb_info = {
 	.lccr3			= LCCR3_PCP,
 };
 
-static struct corgibl_machinfo mioa701_backlight_info = {
-	.max_intensity = 0x3ff,
-	.default_intensity = 0x3ff,
-	.limit_mask = 0x0f,
-	.set_bl_intensity = mioa701_backlight_set_intensity,
-};
-
 /**
  * Keyboard configuration
  */
@@ -105,26 +102,26 @@ static struct pxa27x_keyboard_platform_data mioa701_kbd = {
 		/* row 0 */
 		KEY_UP,
 		KEY_RIGHT,
-		-1,		// Media player
+		KEY_MEDIA,	// Media player
 	}, {
 		/* row 1 */
 		KEY_DOWN,
 		KEY_ENTER,
-		-1,		// GPS
+		KEY_CONNECT,	// GPS
 	}, {
 		/* row 2 */
 		KEY_LEFT,
-		-1,		// Phone Green
-		-1,		// Camera
+		KEY_PHONE,	// Phone Green
+		KEY_CAMERA,	// Camera
 	},
 	},
 	.gpio_modes = {
-		100 | GPIO_ALT_FN_1_IN,   // KP_MKIN1<0>
-		101 | GPIO_ALT_FN_1_IN,   // KP_MKIN1<1>
-		102 | GPIO_ALT_FN_1_IN,   // KP_MKIN1<2>,
-		103 | GPIO_ALT_FN_2_OUT,  // KP_MKOUT<0>
-		104 | GPIO_ALT_FN_2_OUT,  // KP_MKOUT<1>
-		105 | GPIO_ALT_FN_2_OUT,  // KP_MKOUT<2>
+		GPIO100_KP_MKIN0_MD,
+		GPIO101_KP_MKIN1_MD,
+		GPIO102_KP_MKIN2_MD,
+		GPIO103_KP_MKOUT0_MD,
+		GPIO104_KP_MKOUT1_MD,
+		GPIO105_KP_MKOUT2_MD,
 	}
 };
 
@@ -140,9 +137,9 @@ struct platform_device mioa701_pxa_keyboard = {
  * GPIO Key Configuration
  */
 static struct gpio_keys_button mioa701_button_table[] = {
-	{KEY_F8, 0 /* yes, this is GPIO<0> ! */, 0},  // red phone key
-	{KEY_PAGEUP, 93, 0},                          // volume-up
-	{KEY_PAGEDOWN, 94, 0},                        // volume-down
+	{KEY_EXIT, 0 /* yes, this is GPIO<0> ! */, 0},		// red phone key
+	{KEY_VOLUMEUP, 93, 0},                         		// volume-up
+	{KEY_VOLUMEDOWN, 94, 0},                       		// volume-down
 };
 
 static struct gpio_keys_platform_data mioa701_gpio_keys_data = {
