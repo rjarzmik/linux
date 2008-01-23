@@ -18,52 +18,61 @@
 
 extern struct platform_pxa_serial_funcs mioa701_phone_funcs;
 
-static void mioa701_phone_configure(int state)
+static void phone_on(void)
 {
 	int tries;
 
-	//printk( KERN_NOTICE "mioa701 configure phone: %d\n", state );
+	/* pre-serial-up hardware configuration */
+	gpio_set_value(MIO_GPIO_GSM_UNKNOWN2, 1);
+	gpio_set_value(MIO_GPIO_GSM_UNKNOWN1, 1);
+	gpio_set_value(MIO_GPIO_GSM_PREP, 1);
+	gpio_set_value(MIO_GPIO_GSM_OFF, 0);
+	msleep(100);
+	gpio_set_value(MIO_GPIO_GSM_PREP, 0);
+	msleep(10);
+	gpio_set_value(MIO_GPIO_GSM_PREP, 1);
+
+	tries = 0;
+	do {
+		msleep(50);
+	} while ( (FFMSR & MSR_CTS) && (tries++ < 300) );
+	if (tries >= 300) {
+		printk("MioA701 phone: expect garbage at GSM start.\n");
+	} else {
+		printk("MioA701 phone: GSM turned on in %d ms\n", tries*50);
+	}
+}
+
+static void phone_off(void)
+{
+	gpio_set_value(MIO_GPIO_GSM_UNKNOWN1, 1);
+	msleep(1);
+	gpio_set_value(MIO_GPIO_GSM_PREP, 1);
+	msleep(1);
+	gpio_set_value(MIO_GPIO_GSM_OFF, 1);
+	gpio_set_value(MIO_GPIO_GSM_UNKNOWN1, 0);
+	msleep(1);
+	gpio_set_value(MIO_GPIO_GSM_UNKNOWN1, 1);
+	gpio_set_value(MIO_GPIO_GSM_UNKNOWN2, 0);
+	msleep(1);
+	gpio_set_value(MIO_GPIO_GSM_UNKNOWN2, 1);
+	printk("MioA701 phone: GSM turned off.\n");
+}
+
+static void mioa701_phone_configure(int state)
+{
 	switch (state) {
 	
 	case PXA_UART_CFG_PRE_STARTUP:
 		break;
 
 	case PXA_UART_CFG_POST_STARTUP:
-		/* pre-serial-up hardware configuration */
-		gpio_set_value(MIO_GPIO_GSM_UNKNOWN2, 1);
-		gpio_set_value(MIO_GPIO_GSM_UNKNOWN1, 1);
-		gpio_set_value(MIO_GPIO_GSM_PREP, 1);
-		gpio_set_value(MIO_GPIO_GSM_OFF, 0);
-		msleep(100);
-		gpio_set_value(MIO_GPIO_GSM_PREP, 0);
-		msleep(10);
-		gpio_set_value(MIO_GPIO_GSM_PREP, 1);
-
-		tries = 0;
-		do {
-			msleep(10);
-		} while ( (FFMSR & MSR_CTS) && (tries++ < 300) );
-		if (tries >= 300) {
-			printk("MioA701 phone: expect garbage at GSM start.\n");
-		} else {
-			printk("MioA701 phone: GSM turned on.\n");
-		}
+		//phone_on();
 		try_module_get(THIS_MODULE);
 		break;
 
 	case PXA_UART_CFG_PRE_SHUTDOWN:
-		gpio_set_value(MIO_GPIO_GSM_UNKNOWN1, 1);
-		msleep(1);
-		gpio_set_value(MIO_GPIO_GSM_PREP, 1);
-		msleep(1);
-		gpio_set_value(MIO_GPIO_GSM_OFF, 1);
-		gpio_set_value(MIO_GPIO_GSM_UNKNOWN1, 0);
-		msleep(1);
-		gpio_set_value(MIO_GPIO_GSM_UNKNOWN1, 1);
-		gpio_set_value(MIO_GPIO_GSM_UNKNOWN2, 0);
-		msleep(1);
-		gpio_set_value(MIO_GPIO_GSM_UNKNOWN2, 1);
-		printk("MioA701 phone: GSM turned off.\n");
+		//phone_off();
 		break;
 
 	case PXA_UART_CFG_POST_SHUTDOWN:
@@ -93,12 +102,14 @@ static int mioa701_phone_probe(struct platform_device *dev)
 	pxa_gpio_mode(MIO_GPIO_GSM_DTR_MD);
 	pxa_gpio_mode(MIO_GPIO_GSM_RTS_MD);
 
+	phone_on();
 	return 0;
 }
 
 static int
 mioa701_phone_remove(struct platform_device *dev)
 {
+	phone_off();
 	return 0;
 }
 
