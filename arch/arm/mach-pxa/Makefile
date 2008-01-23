@@ -75,3 +75,5 @@ obj-$(CONFIG_DMABOUNCE) += dma_needs_bounce.o
 
 obj-$(CONFIG_PXA27x_VOLTAGE)            += pxa27x_voltage.o
 obj-$(CONFIG_PXA27x_VOLTAGE_MAX158xx)   += pxa27x_voltage_max158xx.o
+
+obj-$(CONFIG_POWER_DRIVER) += power_driver.o

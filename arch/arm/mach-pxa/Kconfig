@@ -200,4 +200,10 @@ config PXA27x_VOLTAGE_MAX158xx
 	tristate "MAX158xx PMIC"
 	depends on PXA27x_VOLTAGE
 
+config POWER_DRIVER
+        tristate "Advanced power driver"
+	depends on MACH_HTCUNIVERSAL
+	help
+          This selection enables an advanced power driver management
+
 endif
