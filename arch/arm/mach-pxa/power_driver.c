@@ -224,7 +224,7 @@ int power_driver_register(struct power_driver *pwdrv)
 {
 	struct pri_power_driver *driver;
 
-	if (!pwdrv->pdriver || !pwdrv->set_state || !pwdrv->pdriver->probe)
+	if (!pwdrv->pdriver || !pwdrv->set_state)
 		return -EINVAL;
 
 	driver = (struct pri_power_driver *)kzalloc(sizeof(struct pri_power_driver),
