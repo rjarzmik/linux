@@ -162,6 +162,7 @@ static const struct mio_mixes_t mixes_stereo_to_rearspeaker[] = {
 	{ "DAC Inv Mux 1", 2 },				// Speaker Mixer -> Inv1
 	{ "Left Speaker Out Mux", 4 },			// Inv1 -> SPKL
 	{ "Right Speaker Out Mux", 3 },			// Speaker Mixer -> SPKR
+	{ NULL, 0 }
 };
 
 struct snd_kcontrol *mioa701_kctrl_byname(struct snd_soc_codec *codec, char *n)
@@ -265,6 +266,7 @@ static void switch_mio_mode(struct snd_soc_codec *codec, int new_scenario)
 		break;
 	case MIO_GSM_CALL_AUDIO_HEADSET:
 		setup_muxers(codec, mixes_gsm_call_headset);
+		break;
 	default:
 		break;
 	}

@@ -295,8 +295,7 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 				continue;
 
 			/* add dapm control with long name */
-			snprintf(name, 43, "%s %s", w->name, w->kcontrols[i].name);
-			name[43] = 0;
+			snprintf(name, 44, "%s %s", w->name, w->kcontrols[i].name);
 			path->long_name = kstrdup (name, GFP_KERNEL);
 			if (path->long_name == NULL)
 				return -ENOMEM;
