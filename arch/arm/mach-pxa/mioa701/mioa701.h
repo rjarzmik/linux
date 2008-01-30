@@ -3,7 +3,7 @@
 
 #include <asm/arch/pxa-regs.h>
 
-/* detect the connexion of an USB cable */
+/* detect the connexion of an USB cable or charger */
 #define MIO_GPIO_USB_DETECT		13
 
 /* probably (XXX: untested) linked to USB enable */

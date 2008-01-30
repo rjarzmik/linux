@@ -41,7 +41,13 @@ config MIOA701_PM
 	depends on MACH_MIOA701 && PM
 	help
 	  Enables support for the Power Managment
-	  in the MIO A701.
+	  in the MIO A701 (suspend/resume)
+
+config MIOA701_BATTERY
+	tristate "MITAC MIO A701 Battery"
+	depends on MACH_MIOA701 && PM && TOUCHSCREEN_WM97XX
+	help
+	  Enables support for the Mio A701 battery
 
 config MIOA701_LEDS
 	tristate "MITAC MIO A701 LEDS"

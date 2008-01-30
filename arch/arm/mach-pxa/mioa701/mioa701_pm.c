@@ -10,22 +10,24 @@
 
 #include "mioa701.h"
 
-extern int mioa701_suspend_init(void);
+extern int  mioa701_suspend_init(void);
 extern void mioa701_suspend_exit(void);
+extern int  mioa701_battery_init(void);
+extern void mioa701_battery_exit(void);
 
-static int __init mioa701_pm_init( void )
+static int __init mioa701_pm_init(void)
 {
 	return mioa701_suspend_init();
 }
 
-static void __exit mioa701_pm_exit( void )
+static void __exit mioa701_pm_exit(void)
 {
 	mioa701_suspend_exit();
         return;
 }
 
-module_init( mioa701_pm_init );
-module_exit( mioa701_pm_exit );
+module_init(mioa701_pm_init);
+module_exit(mioa701_pm_exit);
 
 MODULE_AUTHOR("Robert Jarzmik");
 MODULE_DESCRIPTION("MIO A701 Power Managment Support Driver");

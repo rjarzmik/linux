@@ -11,3 +11,4 @@ obj-$(CONFIG_MIOA701_GPS)	 	+= mioa701_gps.o
 obj-$(CONFIG_MIOA701_PM)	 	+= mioa701_power.o
 obj-$(CONFIG_MIOA701_LEDS)	 	+= mioa701_leds.o
 obj-$(CONFIG_MIOA701_UDC)		+= mioa701_udc.o
+obj-$(CONFIG_MIOA701_BATTERY)		+= mioa701_battery.o
