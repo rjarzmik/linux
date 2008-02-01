@@ -5,7 +5,6 @@
 
 /* detect the connexion of an USB cable or charger */
 #define MIO_GPIO_USB_DETECT		13
-
 /* probably (XXX: untested) linked to USB enable */
 #define MIO_GPIO_USB_EN0		9
 #define MIO_GPIO_USB_EN1		22
