@@ -101,7 +101,11 @@ static int mioa701_pm_remove(struct platform_device *dev)
 static int mioa701_pm_suspend(struct platform_device *dev, pm_message_t state)
 {
 	PWER |=   PWER_GPIO0 
-		| PWER_GPIO1; /* reset */
+		| PWER_GPIO1 /* reset */
+		| PWER_RTC;
+	PRER |=   PWER_GPIO0
+		| PWER_GPIO1
+		| PWER_RTC;
 	// haret: PWER = 0x8010e801 (WERTC | WEUSIM | WE15 | WE14 | WE13 | WE11 | WE0
 	// haret: PSSR = 0x00000005
 	// haret: PRER = 0x0000e001 (RE15 | RE14 | RE13 | RE0)
@@ -128,11 +132,18 @@ static struct platform_driver mioa701_pm = {
         .driver = {
 		.name = "mioa701-pm",
         },
-	.probe = mioa701_pm_probe,
-	.remove = mioa701_pm_remove,
+	.probe   = mioa701_pm_probe,
+	.remove  = mioa701_pm_remove,
 	.suspend = mioa701_pm_suspend,
-	.resume = mioa701_pm_resume,
+	.resume  = mioa701_pm_resume,
 };
+
+static void init_registers(void)
+{
+	PWER = 0;
+	PFER = 0;
+	PRER = 0;
+}
 
 int mioa701_suspend_init(void)
 {
@@ -140,6 +151,7 @@ int mioa701_suspend_init(void)
 	if (!save_buffer)
 		return -ENOMEM;
 	pxa_pm_set_ll_ops(&mioa701_ll_pm_ops);
+	init_registers();
         return platform_driver_register(&mioa701_pm);
 }
 

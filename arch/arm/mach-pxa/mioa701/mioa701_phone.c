@@ -16,6 +16,8 @@
 
 #include "mioa701.h"
 
+#define PWER_GPIO113 (0x2 << 19)
+
 extern struct platform_pxa_serial_funcs mioa701_phone_funcs;
 
 static void phone_on(void)
@@ -113,12 +115,19 @@ mioa701_phone_remove(struct platform_device *dev)
 	return 0;
 }
 
+static int mioa701_phone_suspend(struct platform_device *dev, pm_message_t state)
+{
+	PWER |= PWER_GPIO113;
+	return 0;
+}
+
 static struct platform_driver phone_driver = {
 	.driver	  = {
 		.name	  = "mioa701-phone",
 	},
 	.probe	  = mioa701_phone_probe,
 	.remove	  = mioa701_phone_remove,
+	.suspend  = mioa701_phone_suspend,
 };
 
 static int __init mioa701_phone_init( void )

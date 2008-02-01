@@ -54,12 +54,21 @@ static int mioa701_udc_remove(struct platform_device * dev)
 	return 0;
 }
 
+static int mioa701_udc_suspend(struct platform_device *dev, pm_message_t state)
+{
+	PWER |= GPIO_bit(MIO_GPIO_USB_DETECT);
+	PFER |= GPIO_bit(MIO_GPIO_USB_DETECT);
+	PRER |= GPIO_bit(MIO_GPIO_USB_DETECT);
+	return 0;
+}
+
 static struct platform_driver mioa701_udc_driver = {
 	.driver	  = {
 		.name     = "mioa701_udc",
 	},
 	.probe    = mioa701_udc_probe,
 	.remove   = mioa701_udc_remove,
+	.suspend  = mioa701_udc_suspend,
 };
 
 static int __init mioa701_udc_init(void)
