@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.21-hh19
-# Mon Jan 21 14:05:35 2008
+# Fri Feb  1 22:11:48 2008
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -185,6 +185,7 @@ CONFIG_MIOA701_BLUETOOTH=y
 CONFIG_MIOA701_GSM=y
 CONFIG_MIOA701_GPS=y
 CONFIG_MIOA701_PM=y
+CONFIG_MIOA701_BATTERY=y
 CONFIG_MIOA701_LEDS=y
 CONFIG_MIOA701_UDC=y
 # CONFIG_MACH_GHI270HG is not set
@@ -822,22 +823,7 @@ CONFIG_SPI_BITBANG=y
 #
 # Dallas's 1-wire bus
 #
-CONFIG_W1=y
-
-#
-# 1-wire Bus Masters
-#
-# CONFIG_W1_MASTER_DS2490 is not set
-# CONFIG_W1_MASTER_DS2482 is not set
-CONFIG_W1_MASTER_DS1WM=y
-
-#
-# 1-wire Slaves
-#
-# CONFIG_W1_SLAVE_THERM is not set
-# CONFIG_W1_SLAVE_SMEM is not set
-# CONFIG_W1_SLAVE_DS2433 is not set
-CONFIG_W1_SLAVE_DS2760=y
+# CONFIG_W1 is not set
 
 #
 # Hardware Monitoring support
@@ -890,7 +876,7 @@ CONFIG_POWER_SUPPLY=y
 # CONFIG_POWER_SUPPLY_DEBUG is not set
 CONFIG_PDA_POWER=y
 CONFIG_APM_POWER=y
-CONFIG_BATTERY_DS2760=y
+# CONFIG_BATTERY_DS2760 is not set
 
 #
 # L3 serial bus support
