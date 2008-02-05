@@ -2,23 +2,14 @@ menuconfig MACH_HTCATHENA
 	bool "HTC Athena"
 	select PXA27x
 	select PXA_SSP
+	select BOARD_IRQ_MAP_BIG
+	select HTC_EGPIO
+        select PXA_SSP
+        select ADC
 	help
 		Say Y here if you intend to run this kernel on a
 		HTC Athena. Currently there is only basic support
 		for this phone.
-
-config HTCATHENA_CPLD1
-	tristate "HTC Athena CPLD1 driver"
-	depends on MACH_HTCATHENA
-	help
-	  This driver is supposed to test the Athena's CPLD1.
-
-config HTCATHENA_CPLD2
-	tristate "HTC Athena CPLD2 driver"
-	depends on MACH_HTCATHENA
-	help
-	  This driver is supposed to test the Athena's CPLD2.
-
 
 #config HTCATHENA_PHONE
 #	tristate "HTC Alpine Phone driver"
@@ -31,3 +22,17 @@ config HTCATHENA_VSFB
 	depends on MACH_HTCATHENA && LCD_CLASS_DEVICE
 	help
 	  This driver provides primitive support for HTC Athena LCD display.
+
+config HTCATHENA_BLUETOOTH
+	tristate "HTC Athena Bluetooth"
+	depends on MACH_HTCATHENA && HTC_EGPIO
+	help
+	  Enables support for the TI BRF6150 Bluetooth Module
+	  in HTC Athena.
+
+config HTCATHENA_GPS
+	tristate "HTC Athena GPS"
+	depends on MACH_HTCATHENA && HTC_EGPIO
+	help
+	  Enables support for the SiRF-3 GPS Module
+	  in HTC Athena.

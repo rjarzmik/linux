@@ -260,6 +260,11 @@ config GPIO
  If unsure, say N.
 
 
+config POWER_DRIVER
+        tristate "Advanced power driver"
+	depends on MACH_HTCUNIVERSAL
+	help
+          This selection enables an advanced power driver management
 
 endif
 
