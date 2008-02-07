@@ -33,7 +33,6 @@
 
 static struct wm97xx *battery_wm;
 static struct power_supply *mio_power_supply;
-static void usbpower_toggle(struct work_struct *unused);
 
 static int is_usb_connected(void)
 {
@@ -228,9 +227,6 @@ static int __init mioa701_battery_init(void)
 
 static void __exit mioa701_battery_exit(void)
 {
-	int irq = gpio_to_irq(MIO_GPIO_USB_DETECT);
-
-	//free_irq(irq, &mio_power_supply);
 	driver_unregister(&mioa701_battery_driver);
 	power_supply_unregister(&battery_ps);
 	platform_device_unregister(&power_dev);
