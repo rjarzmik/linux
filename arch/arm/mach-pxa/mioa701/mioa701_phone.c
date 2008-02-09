@@ -83,9 +83,6 @@ static void phone_on(void)
 {
 	int tries;
 
-	phone_init_gpios();
-	if (is_phone_on())
-		phone_off();
 	phone_reset();
 	msleep(300);
 	gpio_set_value(MIO_GPIO_GSM_nMOD_ON_CMD, 0);
@@ -130,9 +127,19 @@ static void mioa701_phone_configure(int state)
 
 static int mioa701_phone_probe(struct platform_device *dev)
 {
+	int tries = 0;
+
 	phone_init_gpios();
 	ffuart_init_gpios();
-	phone_on();
+	do {
+		phone_off();
+		phone_on();
+		msleep(200);
+		if (!is_phone_on())
+			msleep(1300);
+	}
+	while ((tries++ < 4) && (!is_phone_on()));
+	printk(KERN_NOTICE "Mioa701 Phone: turned phone on in %d tries\n", tries);
 
 	set_irq_type (gpio_to_irq(MIO_GPIO_GSM_MOD_ON_STATE), IRQT_BOTHEDGE);
 	return request_irq(gpio_to_irq(MIO_GPIO_GSM_MOD_ON_STATE), phone_power_irq,
