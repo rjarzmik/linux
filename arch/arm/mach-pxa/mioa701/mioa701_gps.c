@@ -16,7 +16,44 @@
 
 #include "mioa701.h"
 
+#define OUTLO (GPIO_OUT | GPIO_DFLT_LOW)
+#define OUTHI (GPIO_OUT | GPIO_DFLT_HIGH)
+
 extern struct platform_pxa_serial_funcs mioa701_gps_funcs;
+
+void gps_init_gpios()
+{
+	/* configure SIRF.III GPIOS */
+	pxa_gpio_mode(MIO_GPIO_GPS_UNKNOWN1 | OUTHI);
+	pxa_gpio_mode(MIO_GPIO_GPS_UNKNOWN2 | OUTLO);
+	pxa_gpio_mode(MIO_GPIO_GPS_UNKNOWN3 | OUTLO);
+	pxa_gpio_mode(MIO_GPIO_GPS_ON       | OUTLO);
+	pxa_gpio_mode(MIO_GPIO_GPS_RESET    | OUTLO);
+	/* configure gps UART */
+	pxa_gpio_mode(MIO_GPIO_GPS_RXD_MD);
+	pxa_gpio_mode(MIO_GPIO_GPS_TXD_MD);
+}
+
+void gps_on()
+{
+	gpio_set_value(MIO_GPIO_GPS_ON, 1);
+	msleep(200);
+	gpio_set_value(MIO_GPIO_GPS_RESET, 1);
+	printk("MioA701 gps: GPS turned on.\n");
+}
+
+void gps_off()
+{
+	gpio_set_value(MIO_GPIO_GPS_ON, 0);
+	gpio_set_value(MIO_GPIO_GPS_RESET, 0);
+	printk("MioA701 gps: GPS turned off.\n");
+}
+
+void gps_reset()
+{
+	gps_off();
+	gps_on();
+}
 
 static void mioa701_gps_configure(int state)
 {
@@ -46,9 +83,8 @@ static void mioa701_gps_configure(int state)
 static int
 mioa701_gps_probe(struct platform_device *dev)
 {
-	/* configure gps UART */
-	pxa_gpio_mode(MIO_GPIO_GPS_RXD_MD);
-	pxa_gpio_mode(MIO_GPIO_GPS_TXD_MD);
+	gps_init_gpios();
+	gps_on();
 
 	return 0;
 }
@@ -56,6 +92,8 @@ mioa701_gps_probe(struct platform_device *dev)
 static int
 mioa701_gps_remove(struct platform_device *dev)
 {
+	gps_off();
+
 	return 0;
 }
 
