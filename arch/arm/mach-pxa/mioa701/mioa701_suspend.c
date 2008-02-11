@@ -135,10 +135,12 @@ static int mioa701_pm_suspend(struct platform_device *dev, pm_message_t state)
 	/* Unknown GPIO 116 */
 	PGSR3 |= GPIO_bit(116);
 
+	/*
 	PGSR0 = 0x02b0401a; // GPIOs: 1, 3, 4, 14, 20, 21, 23(gps), 25(gsm)
 	PGSR1 = 0x02525c96; // GPIOs: 33, 34(gsm), 36(gsm), 39(gsm), 42(bt),
 	PGSR2 = 0x054d2000; // GPIOs: 77, 80, 82(leds), 83(bt), 86, 88(gsm), 90(gsm)
 	PGSR3 = 0x007e038c; // GPIOs: 98(leds), 99(sound), 103(key), 104(key)
+	*/
 
 
 	/* 3.6864 MHz oscillator power-down enable */

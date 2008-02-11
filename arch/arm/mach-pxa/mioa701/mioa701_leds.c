@@ -23,24 +23,29 @@ struct mioa701_leds {
 
 #define ledtoml(Led) container_of((Led), struct mioa701_leds, led)
 static void mioa701_led_brightness_set(struct led_classdev *led_cdev, enum led_brightness value);
-
-static u32 PGSRn(int gpio)
-{
-	if (gpio < 32)
-		return PGSR0;
-	if (gpio < 64)
-		return PGSR1;
-	if (gpio < 96)
-		return PGSR2;
-	return PGSR3;
-}
+#define PGSRn(n) __REG2(0x40F00020, (n<<2))
 
 static void PGSRset(int gpio, int val)
 {
-	if (val)
-		(*((u32 *)PGSRn(gpio))) |= GPIO_bit(gpio);
+	int reg;
+	
+	if (gpio >= 96)
+		reg = 3;
+	else if (gpio >= 64)
+		reg = 2;
+	else if (gpio >= 32)
+		reg = 1;
 	else
-		(*((u32 *)PGSRn(gpio))) &= ~(GPIO_bit(gpio));
+		reg = 0;
+		
+	if (val) {
+		PGSRn(reg) |= GPIO_bit(gpio);
+		printk(KERN_NOTICE "PGSRset(%d,%d)\n", gpio, val);
+	}
+	else {
+		PGSRn(reg) &= ~GPIO_bit(gpio);
+		printk(KERN_NOTICE "PGSRset(%d,%d)\n", gpio, val);
+	}
 }
 
 static struct mioa701_leds leds[] = {
@@ -116,9 +121,9 @@ static int mioa701_led_suspend(struct platform_device *dev, pm_message_t state)
 	int gpio, val;
 
 	for (i = 0; i < ARRAY_SIZE(leds); i++) {
-		//gpio = leds[i].gpio;
-		//val = gpio_get_value(gpio);
-		//PGSRset(gpio, val);
+		gpio = leds[i].gpio;
+		val = gpio_get_value(gpio);
+		PGSRset(gpio, val);
 		led_classdev_suspend(&leds[i].led);
 	}
 
@@ -135,17 +140,14 @@ static int mioa701_led_resume(struct platform_device *dev)
 	return 0;
 }
 
-
 static struct platform_driver mioa701_led_driver = {
 	.driver = {
 		.name   = "mioa701-leds",
 	},
 	.probe  = mioa701_led_probe,
 	.remove = mioa701_led_remove,
-#ifdef CONFIG_PM
 	.suspend = mioa701_led_suspend,
 	.resume = mioa701_led_resume,
-#endif
 };
 
 static int mioa701_led_init (void)
