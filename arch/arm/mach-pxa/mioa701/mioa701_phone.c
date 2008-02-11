@@ -157,7 +157,15 @@ mioa701_phone_remove(struct platform_device *dev)
 
 static int mioa701_phone_suspend(struct platform_device *dev, pm_message_t state)
 {
-	PWER |= PWER_GPIO113;
+	PWER  |= PWER_GPIO113;
+	PGSR0 |= GPIO_bit(MIO_GPIO_GSM_MOD_ON_STATE);
+	PGSR1 |= GPIO_bit(MIO_GPIO_GSM_RXD_MD) | GPIO_bit(MIO_GPIO_GSM_DCD_MD)
+		| GPIO_bit(MIO_GPIO_GSM_TXD_MD);
+	PGSR2 |= GPIO_bit(MIO_GPIO_GSM_nMOD_ON_CMD)
+		| GPIO_bit(MIO_GPIO_GSM_nMOD_OFF_CMD);
+	PGSR3 |= GPIO_bit(MIO_GPIO_GSM_EVENT) 
+		| GPIO_bit(MIO_GPIO_GSM_nMOD_DTE_UART_STATE);
+
 	return 0;
 }
 

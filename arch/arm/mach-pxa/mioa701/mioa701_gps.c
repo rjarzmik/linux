@@ -80,8 +80,7 @@ static void mioa701_gps_configure(int state)
 }
 
 
-static int
-mioa701_gps_probe(struct platform_device *dev)
+static int mioa701_gps_probe(struct platform_device *dev)
 {
 	gps_init_gpios();
 	gps_on();
@@ -89,10 +88,17 @@ mioa701_gps_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int
-mioa701_gps_remove(struct platform_device *dev)
+static int mioa701_gps_remove(struct platform_device *dev)
 {
 	gps_off();
+
+	return 0;
+}
+
+static int mioa701_gps_suspend(struct platform_device *dev, pm_message_t state)
+{
+	PGSR0 |= GPIO_bit(MIO_GPIO_GPS_UNKNOWN1);
+	PGSR1 |= GPIO_bit(MIO_GPIO_GPS_RXD_MD);
 
 	return 0;
 }
@@ -103,6 +109,7 @@ static struct platform_driver gps_driver = {
 	},
 	.probe    = mioa701_gps_probe,
 	.remove   = mioa701_gps_remove,
+	.suspend  = mioa701_gps_suspend,
 };
 
 static int __init mioa701_gps_init(void)

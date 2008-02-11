@@ -24,6 +24,25 @@ struct mioa701_leds {
 #define ledtoml(Led) container_of((Led), struct mioa701_leds, led)
 static void mioa701_led_brightness_set(struct led_classdev *led_cdev, enum led_brightness value);
 
+static u32 PGSRn(int gpio)
+{
+	if (gpio < 32)
+		return PGSR0;
+	if (gpio < 64)
+		return PGSR1;
+	if (gpio < 96)
+		return PGSR2;
+	return PGSR3;
+}
+
+static void PGSRset(int gpio, int val)
+{
+	if (val)
+		(*((u32 *)PGSRn(gpio))) |= GPIO_bit(gpio);
+	else
+		(*((u32 *)PGSRn(gpio))) &= ~(GPIO_bit(gpio));
+}
+
 static struct mioa701_leds leds[] = {
 	{
 		.gpio   = MIO_GPIO_LED_nBLUE,
@@ -94,9 +113,14 @@ static int mioa701_led_remove(struct platform_device *dev)
 static int mioa701_led_suspend(struct platform_device *dev, pm_message_t state)
 {
 	int i;
+	int gpio, val;
 
-	for (i = 0; i < ARRAY_SIZE(leds); i++)
+	for (i = 0; i < ARRAY_SIZE(leds); i++) {
+		//gpio = leds[i].gpio;
+		//val = gpio_get_value(gpio);
+		//PGSRset(gpio, val);
 		led_classdev_suspend(&leds[i].led);
+	}
 
 	return 0;
 }

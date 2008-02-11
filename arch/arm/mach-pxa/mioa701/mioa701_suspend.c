@@ -109,10 +109,37 @@ static int mioa701_pm_suspend(struct platform_device *dev, pm_message_t state)
 	// haret: PWER = 0x8010e801 (WERTC | WEUSIM | WE15 | WE14 | WE13 | WE11 | WE0
 	// haret: PSSR = 0x00000005
 	// haret: PRER = 0x0000e001 (RE15 | RE14 | RE13 | RE0)
-	PGSR0 = 0x02b0401a;
-	PGSR1 = 0x02525c96;
-	PGSR2 = 0x054d2000;
-	PGSR3 = 0x007e038c;
+
+	// PGSR0 = 0x02b0401a; // GPIOs: 1, 3, 4, 14, 20, 21, 23(gps), 25(gsm)
+	/* I2C bus */
+	PGSR0 |= GPIO_bit(3) | GPIO_bit(4);
+	/* Unknown GPIO14, GPIO20, GPIO21 */
+	PGSR0 |= GPIO_bit(14) | GPIO_bit(20) | GPIO_bit(21);
+
+	// PGSR1 = 0x02525c96; // GPIOs: 33, 34(gsm), 36(gsm), 39(gsm), 42(bt),
+	//                               43(bt), 44(bt), 46(gps), 49, 52, 54, 57
+	/* Unknown GPIO33, GPIO49, GPIO57 */
+	PGSR1 |= GPIO_bit(33) | GPIO_bit(49) | GPIO_bit(57);
+
+	// PGSR2 = 0x054d2000; // GPIOs: 77, 80, 82(leds), 83(bt), 86, 88(gsm), 90(gsm)
+	/* Unknown GPIO77, GPIO80, GPIO86 */
+	PGSR2 |= GPIO_bit(77) | GPIO_bit(80) | GPIO_bit(86) ;
+
+	// PGSR3 = 0x007e038c; // GPIOs: 98(leds), 99(sound), 103(key), 104(key)
+	//				105(key), 113(gsm), 114(gsm), 115(led), 
+	//				116, 117(i2c), 118(i2c)
+	/* Keyboard */
+	PGSR3 |= GPIO_bit(103) | GPIO_bit(104) | GPIO_bit(105);
+	/* Power I2C */
+	PGSR3 |= GPIO_bit(117) | GPIO_bit(118);
+	/* Unknown GPIO 116 */
+	PGSR3 |= GPIO_bit(116);
+
+	PGSR0 = 0x02b0401a; // GPIOs: 1, 3, 4, 14, 20, 21, 23(gps), 25(gsm)
+	PGSR1 = 0x02525c96; // GPIOs: 33, 34(gsm), 36(gsm), 39(gsm), 42(bt),
+	PGSR2 = 0x054d2000; // GPIOs: 77, 80, 82(leds), 83(bt), 86, 88(gsm), 90(gsm)
+	PGSR3 = 0x007e038c; // GPIOs: 98(leds), 99(sound), 103(key), 104(key)
+
 
 	/* 3.6864 MHz oscillator power-down enable */
 	//PCFR  = 0x000004f1; // PCFR_FVC | PCFR_DCEN || PCFR_PI2CEN | PCFR_GPREN | PCFR_OPDE
@@ -143,6 +170,10 @@ static void init_registers(void)
 	PWER = 0;
 	PFER = 0;
 	PRER = 0;
+	PGSR0 = 0;
+	PGSR1 = 0;
+	PGSR2 = 0;
+	PGSR3 = 0;
 }
 
 int mioa701_suspend_init(void)

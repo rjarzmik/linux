@@ -56,8 +56,7 @@ static void mioa701_bt_configure(int state)
 }
 
 
-static int
-mioa701_bt_probe(struct platform_device *pdev)
+static int mioa701_bt_probe(struct platform_device *pdev)
 {
 	/* configure bluetooth UART */
 	pxa_gpio_mode(MIO_GPIO_BT_RXD_MD);
@@ -73,12 +72,21 @@ static int mioa701_bt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int mioa701_bt_suspend(struct platform_device *dev, pm_message_t state)
+{
+	PGSR1 |= GPIO_bit(MIO_GPIO_BT_RXD_MD) | GPIO_bit(MIO_GPIO_BT_TXD_MD)
+		| GPIO_bit(MIO_GPIO_BT_CTS_MD);
+	PGSR2 |= GPIO_bit(MIO_GPIO_BT_ON);
+	return 0;
+}
+
 static struct platform_driver bt_driver = {
 	.driver = {
 		.name	  = "mioa701-bt",
 	},
 	.probe	  = mioa701_bt_probe,
 	.remove	  = mioa701_bt_remove,
+	.suspend  = mioa701_bt_suspend,
 };
 
 static int __init mioa701_bt_init(void)
