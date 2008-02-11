@@ -38,14 +38,10 @@ static void PGSRset(int gpio, int val)
 	else
 		reg = 0;
 		
-	if (val) {
+	if (val)
 		PGSRn(reg) |= GPIO_bit(gpio);
-		printk(KERN_NOTICE "PGSRset(%d,%d)\n", gpio, val);
-	}
-	else {
+	else
 		PGSRn(reg) &= ~GPIO_bit(gpio);
-		printk(KERN_NOTICE "PGSRset(%d,%d)\n", gpio, val);
-	}
 }
 
 static struct mioa701_leds leds[] = {
