@@ -300,6 +300,27 @@ static int phone_stream_stop(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int rear_amp_handle(struct snd_soc_dapm_widget *widget, int power)
+{
+	unsigned short reg;
+	struct snd_soc_codec *codec = widget->codec;
+
+	printk(KERN_NOTICE "rear_amp_handle(%d)\n", power);
+
+	switch(power) {
+	case SND_SOC_DAPM_PRE_PMU:
+		reg = codec->read(codec, AC97_GPIO_CFG);
+		codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		reg = codec->read(codec, AC97_GPIO_CFG);
+		codec->write(codec, AC97_GPIO_CFG, reg & ~0x0100);
+		break;
+	}
+
+	return 0;
+}
+
 static const char *mio_scenarios[] = {
 	"Off",
 	"GSM Handset",
@@ -330,7 +351,9 @@ static const struct snd_soc_dapm_widget mioa701_dapm_widgets[] = {
 	SND_SOC_DAPM_LINE("GSM Line In", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Front Mic", NULL),
-	SND_SOC_DAPM_PGA("Rear Speaker Amp", AC97_GPIO_PULL, 15, 1, NULL, 0),
+	SND_SOC_DAPM_PGA_E("Rear Amp", AC97_GPIO_PULL, 15, 1, NULL, 0,
+			   rear_amp_handle, 
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 /* example machine audio_mapnections */
@@ -356,10 +379,10 @@ static const char* audio_map[][3] = {
 	{"Front Speaker", NULL, "HPL"},
 	{"Front Speaker", NULL, "OUT3"},
 
-	/* front speaker connected to SPKL, SPKR */
-	{"Rear Speaker", NULL, "Rear Speaker"},
-	{"Rear Speaker Amp", NULL, "SPKL"},
-	{"Rear Speaker Amp", NULL, "SPKR"},
+	/* rear speaker connected to SPKL, SPKR */
+	{"Rear Speaker", NULL, "Rear Amp"},
+	{"Rear Amp", NULL, "SPKL"},
+	{"Rear Amp", NULL, "SPKR"},
 
 	{NULL, NULL, NULL},
 };
@@ -464,6 +487,7 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 	}
 
 	/* Prepare GPIO8 for rear speaker amplificator */
+	/* Handled now by DAPM */
 	reg = codec->read(codec, AC97_GPIO_CFG);
 	codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
 
@@ -484,6 +508,12 @@ static int mioa701_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int mioa701_resume(struct platform_device *pdev)
 {
+	unsigned short reg;
+ 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->codec;
+
+	reg = codec->read(codec, AC97_GPIO_CFG);
+	codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
 	return 0;
 }
 
