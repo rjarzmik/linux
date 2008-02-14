@@ -300,25 +300,40 @@ static int phone_stream_stop(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rear_amp_handle(struct snd_soc_dapm_widget *widget, int power)
+/* Use GPIO8 for rear speaker amplificator */
+static int rear_amp_power(struct snd_soc_codec *codec, int power)
 {
 	unsigned short reg;
-	struct snd_soc_codec *codec = widget->codec;
 
-	printk(KERN_NOTICE "rear_amp_handle(%d)\n", power);
-
-	switch(power) {
-	case SND_SOC_DAPM_PRE_PMU:
+	if (power) {
 		reg = codec->read(codec, AC97_GPIO_CFG);
 		codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
-		break;
-	case SND_SOC_DAPM_POST_PMD:
+		reg = codec->read(codec, AC97_GPIO_PULL);
+		codec->write(codec, AC97_GPIO_PULL, reg & ~(1<<15));
+	}
+	else {
 		reg = codec->read(codec, AC97_GPIO_CFG);
 		codec->write(codec, AC97_GPIO_CFG, reg & ~0x0100);
-		break;
+		reg = codec->read(codec, AC97_GPIO_PULL);
+		codec->write(codec, AC97_GPIO_PULL, reg | (1<<15));
 	}
 
 	return 0;
+}
+
+static int rear_amp_event(struct snd_soc_dapm_widget *widget, int event)
+{
+	struct snd_soc_codec *codec = widget->codec;
+	int rc;
+
+	printk(KERN_NOTICE "rear_amp_event(%d)\n", event);
+
+	if (SND_SOC_DAPM_EVENT_ON(event))
+		rc = rear_amp_power(codec, 1);
+	else
+		rc = rear_amp_power(codec, 0);
+
+	return rc;
 }
 
 static const char *mio_scenarios[] = {
@@ -345,15 +360,12 @@ static const struct snd_kcontrol_new mioa701_controls[] = {
 /* mioa701 machine dapm widgets */
 static const struct snd_soc_dapm_widget mioa701_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Front Speaker", NULL),
-	SND_SOC_DAPM_SPK("Rear Speaker", NULL),
+	SND_SOC_DAPM_SPK("Rear Speaker", rear_amp_event),
 	SND_SOC_DAPM_MIC("Headset", NULL),
 	SND_SOC_DAPM_LINE("GSM Line Out", NULL),
 	SND_SOC_DAPM_LINE("GSM Line In", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("Front Mic", NULL),
-	SND_SOC_DAPM_PGA_E("Rear Amp", AC97_GPIO_PULL, 15, 1, NULL, 0,
-			   rear_amp_handle, 
-			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 /* example machine audio_mapnections */
@@ -380,9 +392,8 @@ static const char* audio_map[][3] = {
 	{"Front Speaker", NULL, "OUT3"},
 
 	/* rear speaker connected to SPKL, SPKR */
-	{"Rear Speaker", NULL, "Rear Amp"},
-	{"Rear Amp", NULL, "SPKL"},
-	{"Rear Amp", NULL, "SPKR"},
+	{"Rear Speaker", NULL, "SPKL"},
+	{"Rear Speaker", NULL, "SPKR"},
 
 	{NULL, NULL, NULL},
 };
@@ -486,11 +497,6 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 			audio_map[i][2]);
 	}
 
-	/* Prepare GPIO8 for rear speaker amplificator */
-	/* Handled now by DAPM */
-	reg = codec->read(codec, AC97_GPIO_CFG);
-	codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
-
 	/* Prepare MIC input */
 	reg = codec->read(codec, AC97_3D_CONTROL);
 	codec->write(codec, AC97_3D_CONTROL, reg | 0xc000);
@@ -503,17 +509,19 @@ static int mioa701_wm9713_init(struct snd_soc_codec *codec)
 
 static int mioa701_suspend(struct platform_device *pdev, pm_message_t state)
 {
+ 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->codec;
+
+	rear_amp_power(codec, 0);
 	return 0;
 }
 
 static int mioa701_resume(struct platform_device *pdev)
 {
-	unsigned short reg;
  	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->codec;
 
-	reg = codec->read(codec, AC97_GPIO_CFG);
-	codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
+	rear_amp_power(codec, 0);
 	return 0;
 }
 
