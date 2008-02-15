@@ -108,8 +108,8 @@ static int master_get(struct snd_kcontrol *kcontrol,
 		old = uc.value.integer.value[ind];
 		if (master->type == SNDRV_CTL_ELEM_TYPE_INTEGER)
 			old = old * 256 / (max+1);
-		printk("master_get: %s[%d] max=%d: %ld->%d\n", kctl->id.name, 
-		       ind, max, ucontrol->value.integer.value[i], old);
+		/* printk("master_get: %s[%d] max=%d: %ld->out=%d\n", kctl->id.name, 
+		   ind, max, ucontrol->value.integer.value[i], old); */
 		ucontrol->value.integer.value[i] = old;
 	}
 
@@ -137,8 +137,8 @@ static int master_put(struct snd_kcontrol *kcontrol,
 
 		if (kctl->get(kctl, &uc) < 0)
 			continue;
-		printk("master_put: %s[%d] max=%d %ld->%d\n", kctl->id.name, 
-		       ind, max, uc.value.integer.value[ind], new);
+		/* printk("master_put: %s[%d] max=%d %ld->new=%d\n", kctl->id.name, 
+		   ind, max, uc.value.integer.value[ind], new); */
 
 		uc.value.integer.value[ind] = new;
 		if (kctl->put(kctl, &uc) < 0)
@@ -237,7 +237,7 @@ int mioa701_master_init(struct snd_soc_codec *codec)
 
 void mioa701_master_change(int scenario)
 {
-	printk(KERN_NOTICE "mioa701_master_change(%d)\n", scenario);
+	/* printk(KERN_NOTICE "mioa701_master_change(%d)\n", scenario); */
 	master_change(miovol, &miomastervol[scenario]);
 	master_change(miomute, &miomastermute[scenario]);
 }

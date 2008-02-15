@@ -236,22 +236,35 @@ static int get_scenario(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static void switch_mio_mode(struct snd_soc_codec *codec, int new_scenario)
+static int isPhoneMode(int scenario)
 {
-	mio_scenario = new_scenario;
-	set_scenario_endpoints(codec, mio_scenario);
+	int onPhone = 0;
 
-	switch (mio_scenario) {
+	switch (scenario) {
 	case MIO_GSM_CALL_AUDIO_HANDSET:
 	case MIO_GSM_CALL_AUDIO_HEADSET:
 	case MIO_GSM_CALL_AUDIO_BLUETOOTH:
 	case MIO_GSM_CALL_AUDIO_HANDSFREE:
-		phone_stream_start(codec);
-		break;
-	default:
-		phone_stream_stop(codec);
-		break;
+		onPhone = 1;
 	}
+
+	return onPhone;
+}
+
+static void switch_mio_mode(struct snd_soc_codec *codec, int new_scenario)
+{
+	int wasPhone = 0, willPhone = 0;
+
+	wasPhone  = isPhoneMode(mio_scenario);
+	willPhone = isPhoneMode(new_scenario);
+
+	mio_scenario = new_scenario;
+	set_scenario_endpoints(codec, mio_scenario);
+
+	if (!wasPhone && willPhone)
+		phone_stream_start(codec);
+	if (wasPhone && !willPhone)
+		phone_stream_stop(codec);
 
 	setup_muxers(codec, mixes_reset_all);
 	switch (mio_scenario) {
@@ -309,13 +322,13 @@ static int rear_amp_power(struct snd_soc_codec *codec, int power)
 		reg = codec->read(codec, AC97_GPIO_CFG);
 		codec->write(codec, AC97_GPIO_CFG, reg | 0x0100);
 		reg = codec->read(codec, AC97_GPIO_PULL);
-		codec->write(codec, AC97_GPIO_PULL, reg & ~(1<<15));
+		codec->write(codec, AC97_GPIO_PULL, reg | (1<<15));
 	}
 	else {
 		reg = codec->read(codec, AC97_GPIO_CFG);
 		codec->write(codec, AC97_GPIO_CFG, reg & ~0x0100);
 		reg = codec->read(codec, AC97_GPIO_PULL);
-		codec->write(codec, AC97_GPIO_PULL, reg | (1<<15));
+		codec->write(codec, AC97_GPIO_PULL, reg & ~(1<<15));
 	}
 
 	return 0;
@@ -325,8 +338,6 @@ static int rear_amp_event(struct snd_soc_dapm_widget *widget, int event)
 {
 	struct snd_soc_codec *codec = widget->codec;
 	int rc;
-
-	printk(KERN_NOTICE "rear_amp_event(%d)\n", event);
 
 	if (SND_SOC_DAPM_EVENT_ON(event))
 		rc = rear_amp_power(codec, 1);
