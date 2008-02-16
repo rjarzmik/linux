@@ -37,6 +37,14 @@
 
 #ifdef CONFIG_ARCH_PXA
 #include <asm/arch/pxa-regs.h>
+#define RYCR_year  ((RYCR>>9) & 0xfff)
+#define RYCR_month ((RYCR>>5) & 0xf)
+#define RYCR_day   (RYCR & 0x1f)
+#define RDCR_hour  ((RDCR>>12) & 0x1f)
+#define RDCR_min   ((RDCR>>6) & 0x3f)
+#define RDCR_sec   (RDCR & 0x3f)
+#define RYCR_calc(year, month, day) ((year << 9) | (month << 5) | day)
+#define RDCR_calc(hour, min, sec) ((hour<<12) | (min<<6) | sec)
 #endif
 
 #define TIMER_FREQ		CLOCK_TICK_RATE
@@ -246,18 +254,39 @@ static int sa1100_rtc_ioctl(struct device *dev, unsigned int cmd,
 
 static int sa1100_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	rtc_time_to_tm(RCNR, tm);
+	unsigned long time = 0;
+#ifdef CONFIG_ARCH_PXA
+	struct rtc_time tm0;
+
+	memset(&tm0, 0, sizeof(tm0));
+	tm0.tm_year = RYCR_year - 1900;
+	tm0.tm_mon = RYCR_month;
+	tm0.tm_mday = RYCR_day;
+	tm0.tm_hour = RDCR_hour;
+	tm0.tm_min = RDCR_min;
+	tm0.tm_sec = RDCR_sec;
+	rtc_tm_to_time(&tm0, &time);
+#endif
+
+	rtc_time_to_tm(RCNR+time, tm);
 	return 0;
 }
 
 static int sa1100_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	unsigned long time;
 	int ret;
 
+#ifdef CONFIG_ARCH_PXA
+	RYCR = RYCR_calc((1900+tm->tm_year), tm->tm_mon, tm->tm_mday);
+	RDCR = RDCR_calc(tm->tm_hour, tm->tm_min, tm->tm_sec);
+	RCNR = 0;
+	ret = 0;
+#else
+	unsigned long time = 0;
 	ret = rtc_tm_to_time(tm, &time);
 	if (ret == 0)
 		RCNR = time;
+#endif
 	return ret;
 }
 
