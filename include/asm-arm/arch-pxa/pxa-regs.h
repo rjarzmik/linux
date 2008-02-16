@@ -1074,6 +1074,8 @@
 #define RTAR		__REG(0x40900004)  /* RTC Alarm Register */
 #define RTSR		__REG(0x40900008)  /* RTC Status Register */
 #define RTTR		__REG(0x4090000C)  /* RTC Timer Trim Register */
+#define RDCR		__REG(0x40900010)  /* RTC Day Counter Register */
+#define RYCR		__REG(0x40900014)  /* RTC Year Counter Register */
 #define PIAR		__REG(0x40900038)  /* Periodic Interrupt Alarm Register */
 
 #define RTSR_PICE	(1 << 15)	/* Periodic interrupt count enable */
