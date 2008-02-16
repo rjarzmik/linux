@@ -184,8 +184,9 @@ static struct platform_device *devices[] __initdata = {
 static void __init mioa701_init(void)
 {
 	set_pxa_fb_info(&mioa701_pxafb_info);
+	RTTR = 32768 - 1;			/* Reset WinCE value */
 
-        platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 MACHINE_START(MIOA701, "MIO A701")
