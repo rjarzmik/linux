@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
+#include <linux/input.h>
 #include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -441,6 +442,12 @@ static void hpjack_off(struct snd_soc_codec *codec)
 static void hpjack_toggle(struct work_struct *unused)
 {
 	int val = gpio_get_value(MIO_GPIO_HPJACK_INSERT);
+
+	if (mioa701_evdev) {
+		printk (KERN_NOTICE "RJK: jack detect %d\n", val);
+		input_report_switch(mioa701_evdev, SW_HEADPHONE_INSERT, val);
+		input_sync(mioa701_evdev);
+	}
 
 	if (!hpjack_codec)
 		return;

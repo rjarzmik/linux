@@ -181,6 +181,9 @@ static struct platform_device *devices[] __initdata = {
 	&mioa701_pm,
 };
 
+struct input_dev *mioa701_evdev;
+EXPORT_SYMBOL(mioa701_evdev);
+
 static void __init mioa701_init(void)
 {
 	set_pxa_fb_info(&mioa701_pxafb_info);

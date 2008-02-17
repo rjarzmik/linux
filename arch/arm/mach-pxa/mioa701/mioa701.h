@@ -56,4 +56,6 @@
 #define MIO_GPIO_LED_nVibra		82
 #define MIO_GPIO_LED_nKeyboard		115
 
+extern struct input_dev *mioa701_evdev;
+
 #endif /* _MIOA701_H */

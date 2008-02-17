@@ -8,6 +8,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
+#include <linux/input.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/udc.h>
@@ -42,15 +45,45 @@ static struct pxa2xx_udc_mach_info mioa701_udc_info __initdata = {
 
 static struct pxa2xx_udc_mach_info empty_udc_info __initdata;
 
+static inline void input_report_misc(struct input_dev *dev, unsigned int code, int value)
+{
+	input_event(dev, EV_MSC, code, !!value);
+}
+
+static irqreturn_t detect_usb_power(int irq, void *dev_id)
+{
+	int power =  mioa701_udc_is_connected();
+
+	if (mioa701_evdev) {
+		input_report_misc(mioa701_evdev, MSC_SERIAL, power);
+		input_sync(mioa701_evdev);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int mioa701_udc_probe(struct platform_device * dev)
 {
+	int irq = gpio_to_irq(MIO_GPIO_USB_DETECT);
+	int err;
+
 	pxa_set_udc_info(&mioa701_udc_info);
-	return 0;
+	pxa_gpio_mode(MIO_GPIO_USB_DETECT | GPIO_IN);
+	err = request_irq(irq, detect_usb_power,
+                          IRQF_TRIGGER_RISING
+			  | IRQF_TRIGGER_FALLING,
+                          "USB power detect", &mioa701_udc_info);
+	set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
+
+	return err;
 }
 
 static int mioa701_udc_remove(struct platform_device * dev)
 {
+	int irq = gpio_to_irq(MIO_GPIO_USB_DETECT);
+
 	pxa_set_udc_info(&empty_udc_info);
+	free_irq(irq, &mioa701_udc_info);
 	return 0;
 }
 
@@ -64,7 +97,7 @@ static int mioa701_udc_suspend(struct platform_device *dev, pm_message_t state)
 
 static struct platform_driver mioa701_udc_driver = {
 	.driver	  = {
-		.name     = "mioa701_udc",
+		.name     = "mioa701-udc",
 	},
 	.probe    = mioa701_udc_probe,
 	.remove   = mioa701_udc_remove,

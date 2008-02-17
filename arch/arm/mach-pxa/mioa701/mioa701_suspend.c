@@ -17,6 +17,7 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/input.h>
 #include <asm/gpio.h>
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>
@@ -88,8 +89,39 @@ static struct pxa_ll_pm_ops mioa701_ll_pm_ops = {
 	.resume  = mioa701_pxa_ll_pm_resume,
 };
 
+static int mioa701_inputdev_init(void)
+{
+	int rc;
+
+	/* Register the input device */
+	mioa701_evdev = input_allocate_device();
+	if (!mioa701_evdev)
+		return -ENOMEM;
+	mioa701_evdev->name = "Mioa701 Events";
+	mioa701_evdev->phys = "mioa701/input0";
+	mioa701_evdev->id.bustype = BUS_HOST;
+	mioa701_evdev->id.vendor = 0x0001;
+	mioa701_evdev->id.product = 0x0001;
+	mioa701_evdev->id.version = 0x0100;
+
+	mioa701_evdev->evbit[0] = BIT(EV_SW) | BIT(EV_MSC);
+	set_bit(SW_HEADPHONE_INSERT, mioa701_evdev->swbit);
+	set_bit(MSC_SERIAL, mioa701_evdev->mscbit);
+
+	rc = input_register_device(mioa701_evdev);
+	if (rc) {
+		input_free_device(mioa701_evdev);
+		mioa701_evdev = NULL;
+	}
+
+	return rc;
+}
+
 static int mioa701_pm_probe(struct platform_device *dev)
 {
+	if (mioa701_inputdev_init())
+		printk(KERN_NOTICE
+		       "Mioa701: Couldn't register mioa701 main input device");
 	return 0;
 }
 
