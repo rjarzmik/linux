@@ -145,10 +145,10 @@ static void pxa2xx_ac97_warm_reset(struct snd_ac97 *ac97)
 #ifdef CONFIG_PXA27x
 	/* warm reset broken on Bulverde,
 	   so manually keep AC97 reset high */
-	pxa_gpio_mode(113 | GPIO_OUT | GPIO_DFLT_HIGH);
+	pxa_gpio_mode(95 | GPIO_OUT | GPIO_DFLT_HIGH);
 	udelay(10);
 	GCR |= GCR_WARM_RST;
-	pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
+	pxa_gpio_mode(95 | GPIO_ALT_FN_1_OUT);
 	udelay(500);
 #elif defined(CONFIG_PXA3xx)
 	/* Can't use interrupts */
@@ -303,8 +303,8 @@ static int pxa2xx_ac97_resume(struct platform_device *dev)
 	pxa_gpio_mode(GPIO29_SDATA_IN_AC97_MD);
 #endif
 #ifdef CONFIG_PXA27x
-	/* Use GPIO 113 as AC97 Reset on Bulverde */
-	pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
+	/* Use GPIO 95 as AC97 Reset on Bulverde */
+	pxa_gpio_mode(95 | GPIO_ALT_FN_1_OUT);
 #endif
 	clk_enable(ac97_clk);
 	return 0;
@@ -457,8 +457,8 @@ static int pxa2xx_ac97_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 #ifdef CONFIG_PXA27x
-	/* Use GPIO 113 as AC97 Reset on Bulverde */
-	pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
+	/* Use GPIO 95 as AC97 Reset on Bulverde */
+	pxa_gpio_mode(95 | GPIO_ALT_FN_1_OUT);
 
 	ac97conf_clk = clk_get(&pdev->dev, "AC97CONFCLK");
 	if (IS_ERR(ac97conf_clk)) {
