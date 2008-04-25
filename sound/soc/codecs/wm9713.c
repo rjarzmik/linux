@@ -975,6 +975,7 @@ static int wm9713_resume(struct platform_device *pdev)
 	u16 id;
 
 	/* give the codec an AC97 warm reset to start the link */
+	codec->ac97->bus->ops->reset(codec->ac97);
 	codec->ac97->bus->ops->warm_reset(codec->ac97);
 	id = codec->soc_phys_read(codec->ac97, AC97_VENDOR_ID2); 
 	if (id != 0x4c13) {
