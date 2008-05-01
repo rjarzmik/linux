@@ -62,6 +62,24 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 		gpio_set_value(led_dat->gpio, level);
 }
 
+static void gpio_led_prepare_suspend(struct led_classdev *led_cdev,
+				     enum led_brightness value)
+{
+	struct gpio_led_data *led_dat =
+		container_of(led_cdev, struct gpio_led_data, cdev);
+	int level;
+
+	if (value == LED_OFF)
+		level = 0;
+	else
+		level = 1;
+
+	if (led_dat->active_low)
+		level = !level;
+
+	gpio_set_suspend_value(led_dat->gpio, level);
+}
+
 static int gpio_blink_set(struct led_classdev *led_cdev,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
@@ -104,6 +122,7 @@ static int gpio_led_probe(struct platform_device *pdev)
 			led_dat->cdev.blink_set = gpio_blink_set;
 		}
 		led_dat->cdev.brightness_set = gpio_led_set;
+		led_dat->cdev.prepare_suspend = gpio_led_prepare_suspend;
 		led_dat->cdev.brightness = LED_OFF;
 
 		gpio_direction_output(led_dat->gpio, led_dat->active_low);

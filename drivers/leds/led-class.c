@@ -78,8 +78,12 @@ static DEVICE_ATTR(trigger, 0644, led_trigger_show, led_trigger_store);
  */
 void led_classdev_suspend(struct led_classdev *led_cdev)
 {
-	led_cdev->flags |= LED_SUSPENDED;
-	led_cdev->brightness_set(led_cdev, 0);
+	if (led_cdev->prepare_suspend) {
+		led_cdev->prepare_suspend(led_cdev, led_cdev->brightness);
+	} else {
+		led_cdev->flags |= LED_SUSPENDED;
+		led_cdev->brightness_set(led_cdev, 0);
+	}
 }
 EXPORT_SYMBOL_GPL(led_classdev_suspend);
 
