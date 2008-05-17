@@ -28,6 +28,7 @@
 #define PGSR(x)		__REG2(0x40F00020, ((x) & 0x60) >> 3)
 
 #define PWER_WE35	(1 << 24)
+#define PWER_WE113	(2 << 19)
 
 struct gpio_desc {
 	unsigned	valid		: 1;
@@ -269,6 +270,8 @@ static int __init pxa27x_mfp_init(void)
 
 		gpio_desc[35].can_wakeup = 1;
 		gpio_desc[35].mask = PWER_WE35;
+		gpio_desc[113].can_wakeup = 1;
+		gpio_desc[113].mask = PWER_WE113;
 	}
 
 	return 0;
