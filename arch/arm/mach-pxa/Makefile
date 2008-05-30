@@ -70,3 +70,5 @@ obj-$(CONFIG_MACH_ARMCORE) += cm-x270-pci.o
 endif
 
 obj-$(CONFIG_TOSA_BT)		+= tosa-bt.o
+obj-$(CONFIG_PXA27x_VOLTAGE)            += pxa27x_voltage.o
+obj-$(CONFIG_PXA27x_VOLTAGE_MAX1586B)   += pxa27x_voltage_max1586b.o
