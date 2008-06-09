@@ -31,6 +31,7 @@
 #include <linux/proc_fs.h>
 #include <linux/clk.h>
 #include <linux/irq.h>
+#include <linux/gpio.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>
@@ -1526,6 +1527,9 @@ static void udc_disable(struct pxa_udc *udc)
 
 	ep0_idle(udc);
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	if (udc->mach->gpio_pullup)
+		gpio_set_value(udc->mach->gpio_pullup,
+			       !!udc->mach->gpio_pullup_inverted);
 	if (udc->mach->udc_command)
 		udc->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
 }
@@ -1602,6 +1606,9 @@ static void udc_enable(struct pxa_udc *udc)
 	pio_irq_enable(&udc->pxa_ep[0]);
 
 	dev_info(udc->dev, "UDC connecting\n");
+	if (udc->mach->gpio_pullup)
+		gpio_set_value(udc->mach->gpio_pullup,
+			       !udc->mach->gpio_pullup_inverted);
 	if (udc->mach->udc_command)
 		udc->mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
 }
@@ -2215,7 +2222,7 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
 	struct pxa_udc *udc = &memory;
-	int retval;
+	int retval, gpio;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
@@ -2226,6 +2233,15 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 
 	udc->dev = &pdev->dev;
 	udc->mach = pdev->dev.platform_data;
+
+	gpio = udc->mach->gpio_pullup;
+	if (gpio)
+		retval = gpio_request(gpio, "USB D+ pullup");
+	if (retval) {
+		dev_err(&pdev->dev, "Couldn't request gpio %d : %d\n",
+			gpio, retval);
+		return retval;
+	}
 
 	udc->clk = clk_get(&pdev->dev, "UDCCLK");
 	if (IS_ERR(udc->clk)) {
