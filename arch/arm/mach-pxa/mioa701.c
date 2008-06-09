@@ -389,21 +389,6 @@ static void gsm_exit(void)
 /*
  * USB UDC
  */
-static void udc_power_command(int cmd)
-{
-	switch (cmd) {
-	case PXA2XX_UDC_CMD_DISCONNECT:
-		gpio_set_value(GPIO22_USB_ENABLE, 0);
-		break;
-	case PXA2XX_UDC_CMD_CONNECT:
-		gpio_set_value(GPIO22_USB_ENABLE, 1);
-		break;
-	default:
-		printk(KERN_INFO "udc_control: unknown command (0x%x)!\n", cmd);
-		break;
-	}
-}
-
 static int is_usb_connected(void)
 {
 	return !!gpio_get_value(GPIO13_USB_DETECT);
@@ -411,23 +396,16 @@ static int is_usb_connected(void)
 
 static struct pxa2xx_udc_mach_info mioa701_udc_info = {
 	.udc_is_connected = is_usb_connected,
-	.udc_command	  = udc_power_command,
-};
-
-struct gpio_ress udc_gpios[] = {
-	MIO_GPIO_OUT(GPIO22_USB_ENABLE, 0, "USB Vbus enable")
+	.gpio_pullup	  = GPIO22_USB_ENABLE,
 };
 
 static int __init udc_init(void)
 {
 	pxa_set_udc_info(&mioa701_udc_info);
-	return mio_gpio_request(ARRAY_AND_SIZE(udc_gpios));
+	return 0;
 }
 
-static void udc_exit(void)
-{
-	mio_gpio_free(ARRAY_AND_SIZE(udc_gpios));
-}
+static void udc_exit(void) { }
 
 /*
  * SDIO/MMC Card controller
