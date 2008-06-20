@@ -56,15 +56,6 @@ static inline void gpio_set_value(unsigned gpio, int value)
 	}
 }
 
-#define PGSR(x)		__REG2(0x40F00020, ((x) & 0x60) >> 3)
-static inline void gpio_set_suspend_value(unsigned gpio, int value)
-{
-	if (value)
-		PGSR(gpio) |=  GPIO_bit(gpio);
-	else
-		PGSR(gpio) &= ~GPIO_bit(gpio);
-}
-
 #define gpio_cansleep __gpio_cansleep
 
 #define gpio_to_irq(gpio)	IRQ_GPIO(gpio)

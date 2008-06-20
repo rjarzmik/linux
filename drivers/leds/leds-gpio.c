@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 
 #include <asm/gpio.h>
+#include <asm/arch/mfp-pxa27x.h>
 
 struct gpio_led_data {
 	struct led_classdev cdev;
@@ -77,7 +78,8 @@ static void gpio_led_prepare_suspend(struct led_classdev *led_cdev,
 	if (led_dat->active_low)
 		level = !level;
 
-	gpio_set_suspend_value(led_dat->gpio, level);
+	pxa2xx_mfp_set_lpm(led_dat->gpio,
+			   level ? MFP_LPM_DRIVE_HIGH : MFP_LPM_DRIVE_LOW);
 }
 
 static int gpio_blink_set(struct led_classdev *led_cdev,
