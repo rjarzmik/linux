@@ -11,6 +11,7 @@
 
 /* Global GPIOs */
 #define GPIO18_POWEROFF				18
+#define GPIO87_LCD_POWER			87
 
 /* USB */
 #define GPIO13_USB_DETECT			13

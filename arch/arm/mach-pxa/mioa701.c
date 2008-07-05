@@ -235,10 +235,15 @@ static struct pxafb_mode_info mioa701_ltm0305a776c = {
 	.lower_margin		= 3,
 };
 
+static void mioa701_lcd_power(int on, struct fb_var_screeninfo *si)
+{
+	gpio_set_value(GPIO87_LCD_POWER, on);
+}
 static struct pxafb_mach_info mioa701_pxafb_info = {
 	.modes			= &mioa701_ltm0305a776c,
 	.num_modes		= 1,
 	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
+	.pxafb_lcd_power	= mioa701_lcd_power,
 };
 
 /*
@@ -849,7 +854,8 @@ static void mioa701_restart(char c)
 }
 
 struct gpio_ress global_gpios[] = {
-	MIO_GPIO_OUT(GPIO18_POWEROFF, 0, "Power Off")
+	MIO_GPIO_OUT(GPIO18_POWEROFF, 0, "Power Off"),
+	MIO_GPIO_OUT(GPIO87_LCD_POWER, 0, "LCD Power")
 };
 
 static void __init mioa701_machine_init(void)
