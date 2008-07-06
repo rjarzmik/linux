@@ -10,6 +10,7 @@
 	 (MFP_PIN(pin) | MFP_##af | MFP_DIR_OUT | MFP_LPM_##state))
 
 /* Global GPIOs */
+#define GPIO9_CHARGE_nEN			9
 #define GPIO18_POWEROFF				18
 #define GPIO87_LCD_POWER			87
 

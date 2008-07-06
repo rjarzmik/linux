@@ -54,6 +54,7 @@
 
 static unsigned long mioa701_pin_config[] = {
 	/* Mio global */
+	MIO_CFG_OUT(GPIO9_CHARGE_nEN, AF0, DRIVE_LOW),
 	MIO_CFG_OUT(GPIO18_POWEROFF, AF0, DRIVE_LOW),
 	MFP_CFG_OUT(GPIO3, AF0, DRIVE_HIGH),
 	MFP_CFG_OUT(GPIO4, AF0, DRIVE_HIGH),
@@ -655,8 +656,14 @@ static char *supplicants[] = {
 	"mioa701_battery"
 };
 
+static void mioa701_set_charge(int flags)
+{
+	gpio_set_value(GPIO9_CHARGE_nEN, !flags);
+}
+
 static struct pda_power_pdata power_pdata = {
 	.is_ac_online	= is_usb_connected,
+	.set_charge = mioa701_set_charge,
 	.supplied_to = supplicants,
 	.num_supplicants = ARRAY_SIZE(supplicants),
 };
@@ -854,6 +861,7 @@ static void mioa701_restart(char c)
 }
 
 struct gpio_ress global_gpios[] = {
+	MIO_GPIO_OUT(GPIO9_CHARGE_nEN, 1, "Charger enable"),
 	MIO_GPIO_OUT(GPIO18_POWEROFF, 0, "Power Off"),
 	MIO_GPIO_OUT(GPIO87_LCD_POWER, 0, "LCD Power")
 };
