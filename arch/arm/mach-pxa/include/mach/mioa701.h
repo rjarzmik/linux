@@ -45,6 +45,7 @@
 #define GPIO12_HPJACK_INSERT			12
 
 /* LEDS */
+#define GPIO10_LED_nCharging			10
 #define GPIO97_LED_nBlue			97
 #define GPIO98_LED_nOrange			98
 #define GPIO82_LED_nVibra			82

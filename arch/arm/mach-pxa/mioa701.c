@@ -134,6 +134,7 @@ static unsigned long mioa701_pin_config[] = {
 	MIO_CFG_IN(GPIO12_HPJACK_INSERT, AF0),
 
 	/* Leds */
+	MIO_CFG_OUT(GPIO10_LED_nCharging, AF0, DRIVE_HIGH),
 	MIO_CFG_OUT(GPIO97_LED_nBlue, AF0, DRIVE_HIGH),
 	MIO_CFG_OUT(GPIO98_LED_nOrange, AF0, DRIVE_HIGH),
 	MIO_CFG_OUT(GPIO82_LED_nVibra, AF0, DRIVE_HIGH),
@@ -292,6 +293,7 @@ static struct gpio_keys_platform_data mioa701_gpio_keys_data = {
 #define ONE_LED(_gpio, _name) \
 { .gpio = (_gpio), .name = (_name), .active_low = true }
 static struct gpio_led gpio_leds[] = {
+	ONE_LED(GPIO10_LED_nCharging, "mioa701:charging"),
 	ONE_LED(GPIO97_LED_nBlue, "mioa701:blue"),
 	ONE_LED(GPIO98_LED_nOrange, "mioa701:orange"),
 	ONE_LED(GPIO82_LED_nVibra, "mioa701:vibra"),
