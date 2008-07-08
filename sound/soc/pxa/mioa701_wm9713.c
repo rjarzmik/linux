@@ -53,6 +53,8 @@
 
 static int mio_scenario = MIO_AUDIO_OFF;
 
+extern int mioa701_master_init(struct snd_soc_card *card);
+extern void mioa701_master_change(int scenario);
 static int phone_stream_start(struct snd_soc_card *card);
 static int phone_stream_stop(struct snd_soc_card *card);
 
@@ -318,6 +320,8 @@ static void switch_mio_mode(struct snd_soc_card *card, int new_scenario)
 	default:
 		break;
 	}
+
+	mioa701_master_change(mio_scenario);
 }
 
 static int set_scenario(struct snd_kcontrol *kcontrol,
@@ -482,6 +486,9 @@ static int mioa701_wm9713_init(struct snd_soc_card *card)
 		if (ret)
 			goto out;
 	}
+
+	/* Add mio Masters */
+	mioa701_master_init(card);
 
 	/* Add mioa701 specific widgets */
 	ret = snd_soc_dapm_new_controls(card, codec,
