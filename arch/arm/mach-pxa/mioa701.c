@@ -676,6 +676,7 @@ static struct platform_device power_dev = {
 	},
 };
 
+#if defined(CONFIG_PDA_POWER) && defined(CONFIG_TOUCHSCREEN_WM97XX)
 static struct wm97xx *battery_wm;
 
 static enum power_supply_property battery_props[] = {
@@ -751,10 +752,12 @@ static int battery_probe(struct platform_device *pdev)
 	int rc;
 
 	battery_wm = wm;
+	wm97xx_unregister_mach_ops(wm);
+
 	rc = power_supply_register(NULL, &battery_ps);
 	if (rc)
-		printk(KERN_ERR "Could not register mioa701 battery -> %d\n",
-		       rc);
+		dev_err(&pdev->dev,
+		"Could not register mioa701 battery -> %d\n", rc);
 	return rc;
 }
 
@@ -763,7 +766,6 @@ static int battery_remove(struct platform_device *pdev)
 	struct wm97xx *wm = platform_get_drvdata(pdev);
 
 	battery_wm = NULL;
-	wm97xx_unregister_mach_ops(wm);
 	return 0;
 }
 
@@ -784,6 +786,13 @@ static int __init mioa701_battery_init(void)
 		printk(KERN_ERR "Could not register mioa701 battery driver\n");
 	return rc;
 }
+
+#else
+static int __init mioa701_battery_init(void)
+{
+	return 0;
+}
+#endif
 
 /*
  * Mio global
@@ -848,6 +857,7 @@ static void __init mioa701_machine_init(void)
 	PSLR  = 0xff100000; /* SYSDEL=125ms, PWRDEL=125ms, PSLR_SL_ROD=1 */
 	PCFR = PCFR_DC_EN | PCFR_GPR_EN | PCFR_OPDE;
 	RTTR = 32768 - 1; /* Reset crazy WinCE value */
+	UP2OCR = UP2OCR_HXOE;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(mioa701_pin_config));
 	mio_gpio_request(ARRAY_AND_SIZE(global_gpios));
