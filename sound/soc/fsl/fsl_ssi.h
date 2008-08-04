@@ -226,7 +226,8 @@ struct fsl_ssi_info {
 	unsigned int irq;
 	unsigned int playback;
 	unsigned int capture;
-	spinlock_t lock;
+	struct snd_pcm_substream *master_stream;
+	struct snd_pcm_substream *slave_stream;
 	struct snd_soc_dai *dai;
 	struct device_attribute dev_attr;
 	u32 pmuxcr;
