@@ -398,7 +398,7 @@ static void udc_power_command(int cmd)
 
 static int is_usb_connected(void)
 {
-	return !gpio_get_value(GPIO13_USB_DETECT);
+	return !!gpio_get_value(GPIO13_USB_DETECT);
 }
 
 static struct pxa2xx_udc_mach_info mioa701_udc_info = {
