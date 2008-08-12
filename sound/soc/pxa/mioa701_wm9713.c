@@ -30,7 +30,7 @@
 #include <sound/initval.h>
 #include <sound/ac97_codec.h>
 
-#include <asm/arch/audio.h>
+#include <mach/audio.h>
 
 #include "pxa2xx-pcm.h"
 #include "../codecs/wm9713.h"
