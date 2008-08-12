@@ -30,10 +30,10 @@
 #include <sound/initval.h>
 #include <sound/ac97_codec.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/mainstone.h>
-#include <asm/arch/audio.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/mainstone.h>
+#include <mach/audio.h>
 
 #include "../codecs/wm9713.h"
 #include "pxa2xx-pcm.h"

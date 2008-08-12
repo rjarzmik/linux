@@ -24,9 +24,9 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/audio.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/audio.h>
 
 #include "pxa2xx-pcm.h"
 

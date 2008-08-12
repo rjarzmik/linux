@@ -29,10 +29,10 @@
 #include <sound/soc-dapm.h>
 
 #include <asm/hardware/scoop.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/magician.h>
-#include <asm/arch/magician_cpld.h>
+#include <mach/pxa-regs.h>
+#include <mach/hardware.h>
+#include <mach/magician.h>
+#include <mach/magician_cpld.h>
 #include <asm/mach-types.h>
 
 #include "../codecs/uda1380.h"

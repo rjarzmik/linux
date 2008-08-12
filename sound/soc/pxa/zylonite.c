@@ -25,10 +25,10 @@
 #include <sound/ac97_codec.h>
 
 #include <asm/mach-types.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/mfp-pxa320.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/gpio.h>
+#include <mach/hardware.h>
+#include <mach/mfp-pxa320.h>
+#include <mach/pxa-regs.h>
 
 #include "pxa2xx-pcm.h"
 #include "../codecs/wm9713.h"

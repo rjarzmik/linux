@@ -23,9 +23,9 @@
 #include <sound/ac97_codec.h>
 
 #include <asm/mach-types.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/audio.h>
+#include <mach/pxa-regs.h>
+#include <mach/hardware.h>
+#include <mach/audio.h>
 
 #include "../codecs/wm9712.h"
 #include "pxa2xx-pcm.h"

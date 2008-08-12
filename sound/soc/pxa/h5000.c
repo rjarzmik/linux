@@ -25,9 +25,9 @@
 #include <sound/soc-dapm.h>
 
 #include <asm/mach-types.h>
-#include <asm-arm/arch/gpio.h>
-#include <asm/arch-pxa/h5400-asic.h>
-#include <asm/arch-pxa/h5400-gpio.h>
+#include <asm-mach/gpio.h>
+#include <mach-pxa/h5400-asic.h>
+#include <mach-pxa/h5400-gpio.h>
 #include <asm/hardware/samcop_base.h>
 
 #include "pxa2xx-pcm.h"

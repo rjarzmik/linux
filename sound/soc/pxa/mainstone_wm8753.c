@@ -33,10 +33,10 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/mainstone.h>
-#include <asm/arch/audio.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/mainstone.h>
+#include <mach/audio.h>
 
 #include "../codecs/wm8753.h"
 #include "pxa2xx-pcm.h"
