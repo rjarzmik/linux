@@ -7,7 +7,6 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/hardware.h>
 
 /*
  * Note: Yes, part of the following code is located into the .data section.

@@ -39,13 +39,15 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/mfp-pxa27x.h>
-#include <asm/arch/pxa27x_keypad.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/udc.h>
-#include <asm/arch/mioa701.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/pxa27x_keypad.h>
+#include <mach/pxafb.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mmc.h>
+#include <mach/udc.h>
+#include <mach/pxa27x-udc.h>
+
+#include <mach/mioa701.h>
 
 #include "generic.h"
 #include "devices.h"
