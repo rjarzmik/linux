@@ -15,8 +15,8 @@
 #include <linux/leds.h>
 #include <linux/workqueue.h>
 
-#include <asm/gpio.h>
-#include <asm/arch/mfp-pxa27x.h>
+#include <linux/gpio.h>
+#include <mach/mfp-pxa27x.h>
 
 struct gpio_led_data {
 	struct led_classdev cdev;
