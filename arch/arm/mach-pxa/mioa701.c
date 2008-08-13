@@ -241,6 +241,7 @@ static void mioa701_lcd_power(int on, struct fb_var_screeninfo *si)
 {
 	gpio_set_value(GPIO87_LCD_POWER, on);
 }
+
 static struct pxafb_mach_info mioa701_pxafb_info = {
 	.modes			= &mioa701_ltm0305a776c,
 	.num_modes		= 1,
@@ -744,7 +745,6 @@ static int battery_probe(struct platform_device *pdev)
 	int rc;
 
 	battery_wm = wm;
-	wm97xx_unregister_mach_ops(wm);
 
 	rc = power_supply_register(NULL, &battery_ps);
 	if (rc)
@@ -755,8 +755,6 @@ static int battery_probe(struct platform_device *pdev)
 
 static int battery_remove(struct platform_device *pdev)
 {
-	struct wm97xx *wm = platform_get_drvdata(pdev);
-
 	battery_wm = NULL;
 	return 0;
 }
