@@ -399,6 +399,17 @@ config USB_DUMMY_HCD
 
 endchoice
 
+#
+# USB Transceiver Drivers
+#
+config USB_GPIO_VBUS
+	tristate
+	help
+	  Provides simple GPIO VBUS sensing for controllers with an
+	  internal transceiver via the otg_transceiver interface and
+	  optionally control of a D+ pullup GPIO as well as a VBUS 
+	  current limit regulator.
+
 config USB_GADGET_DUALSPEED
 	bool
 	depends on USB_GADGET

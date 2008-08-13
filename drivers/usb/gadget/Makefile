@@ -5,6 +5,9 @@ ifeq ($(CONFIG_USB_GADGET_DEBUG),y)
 	EXTRA_CFLAGS		+= -DDEBUG
 endif
 
+# transceivers before udc drivers that might need them
+obj-$(CONFIG_USB_GPIO_VBUS)	+= gpio_vbus.o
+
 obj-$(CONFIG_USB_DUMMY_HCD)	+= dummy_hcd.o
 obj-$(CONFIG_USB_NET2280)	+= net2280.o
 obj-$(CONFIG_USB_AMD5536UDC)	+= amd5536udc.o
