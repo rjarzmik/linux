@@ -54,7 +54,7 @@
 
 static unsigned long mioa701_pin_config[] = {
 	/* Mio global */
-	MIO_CFG_OUT(GPIO9_CHARGE_nEN, AF0, DRIVE_LOW),
+	MIO_CFG_OUT(GPIO9_CHARGE_EN, AF0, DRIVE_LOW),
 	MIO_CFG_OUT(GPIO18_POWEROFF, AF0, DRIVE_LOW),
 	MFP_CFG_OUT(GPIO3, AF0, DRIVE_HIGH),
 	MFP_CFG_OUT(GPIO4, AF0, DRIVE_HIGH),
@@ -74,7 +74,7 @@ static unsigned long mioa701_pin_config[] = {
 	MIO_CFG_OUT(GPIO91_SDIO_EN, AF0, DRIVE_LOW),
 
 	/* USB */
-	MIO_CFG_IN(GPIO13_USB_DETECT, AF0),
+	MIO_CFG_IN(GPIO13_nUSB_DETECT, AF0),
 	MIO_CFG_OUT(GPIO22_USB_ENABLE, AF0, DRIVE_LOW),
 
 	/* LCD */
@@ -392,7 +392,7 @@ static void gsm_exit(void)
  */
 static int is_usb_connected(void)
 {
-	return !!gpio_get_value(GPIO13_USB_DETECT);
+	return !gpio_get_value(GPIO13_nUSB_DETECT);
 }
 
 static struct pxa2xx_udc_mach_info mioa701_udc_info = {
@@ -637,26 +637,42 @@ static char *supplicants[] = {
 	"mioa701_battery"
 };
 
+static int is_ac_connected(void)
+{
+	return !!gpio_get_value(GPIO96_AC_DETECT);
+}
+
 static void mioa701_set_charge(int flags)
 {
-	gpio_set_value(GPIO9_CHARGE_nEN, !flags);
+	if (flags == PDA_POWER_CHARGE_USB)
+		gpio_set_value(GPIO9_CHARGE_EN, 1);
+	else
+		gpio_set_value(GPIO9_CHARGE_EN, 0);
 }
 
 static struct pda_power_pdata power_pdata = {
-	.is_ac_online	= is_usb_connected,
-	.set_charge = mioa701_set_charge,
-	.supplied_to = supplicants,
+	.is_ac_online	= is_ac_connected,
+	.is_usb_online	= is_usb_connected,
+	.set_charge	= mioa701_set_charge,
+	.supplied_to	= supplicants,
 	.num_supplicants = ARRAY_SIZE(supplicants),
 };
 
 static struct resource power_resources[] = {
 	[0] = {
 		.name	= "ac",
-		.start	= gpio_to_irq(GPIO13_USB_DETECT),
-		.end	= gpio_to_irq(GPIO13_USB_DETECT),
+		.start	= gpio_to_irq(GPIO96_AC_DETECT),
+		.end	= gpio_to_irq(GPIO96_AC_DETECT),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
 		IORESOURCE_IRQ_LOWEDGE,
 	},
+	[1] = {
+		.name	= "usb",
+		.start	= gpio_to_irq(GPIO13_nUSB_DETECT),
+		.end	= gpio_to_irq(GPIO13_nUSB_DETECT),
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
+		IORESOURCE_IRQ_LOWEDGE,
+	}
 };
 
 static struct platform_device power_dev = {
@@ -693,7 +709,7 @@ static int get_battery_status(struct power_supply *b)
 {
 	int status;
 
-	if (is_usb_connected())
+	if (is_usb_connected() || is_ac_connected())
 		status = POWER_SUPPLY_STATUS_CHARGING;
 	else
 		status = POWER_SUPPLY_STATUS_DISCHARGING;
@@ -839,7 +855,7 @@ static void mioa701_restart(char c)
 }
 
 struct gpio_ress global_gpios[] = {
-	MIO_GPIO_OUT(GPIO9_CHARGE_nEN, 1, "Charger enable"),
+	MIO_GPIO_OUT(GPIO9_CHARGE_EN, 0, "Charger enable"),
 	MIO_GPIO_OUT(GPIO18_POWEROFF, 0, "Power Off"),
 	MIO_GPIO_OUT(GPIO87_LCD_POWER, 0, "LCD Power")
 };

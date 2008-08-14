@@ -10,12 +10,13 @@
 	 (MFP_PIN(pin) | MFP_##af | MFP_DIR_OUT | MFP_LPM_##state))
 
 /* Global GPIOs */
-#define GPIO9_CHARGE_nEN			9
+#define GPIO9_CHARGE_EN				9
 #define GPIO18_POWEROFF				18
 #define GPIO87_LCD_POWER			87
+#define GPIO96_AC_DETECT			96
 
 /* USB */
-#define GPIO13_USB_DETECT			13
+#define GPIO13_nUSB_DETECT			13
 #define GPIO22_USB_ENABLE			22
 
 /* SDIO bits */
