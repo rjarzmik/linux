@@ -19,7 +19,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <asm/arch/pxa27x_voltage.h>
+#include <mach/pxa27x_voltage.h>
 
 static inline u_int8_t mv2cmd(int mv)
 {

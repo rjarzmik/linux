@@ -25,9 +25,9 @@
 #include <linux/delay.h>
 #include <linux/cpufreq.h>
 #include <linux/platform_device.h>
-#include <asm/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa27x_voltage.h>
+#include <mach/hardware.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxa27x_voltage.h>
 
 #ifdef DEBUG
 #define dbg(msg...) \
@@ -233,7 +233,7 @@ static int pxa27x_voltage_probe(struct platform_device *pdev)
 	}
 
 	PCFR |= PCFR_PI2C_EN;
-	pxa_set_cken(CKEN_PWRI2C, 1);
+	CKEN |= CKEN_PWRI2C;
 	chip->freq_transition.notifier_call = do_freq_transition;
 	return cpufreq_register_notifier(&chip->freq_transition,
 					 CPUFREQ_TRANSITION_NOTIFIER);
@@ -245,7 +245,7 @@ static int pxa27x_voltage_remove(struct platform_device *pdev)
 	int ret;
 	ret = cpufreq_unregister_notifier(&chip->freq_transition,
 					  CPUFREQ_TRANSITION_NOTIFIER);
-	pxa_set_cken(CKEN_PWRI2C, 0);
+	CKEN &= ~CKEN_PWRI2C;
 	return ret;
 }
 
