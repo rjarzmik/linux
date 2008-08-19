@@ -425,6 +425,7 @@ struct udc_stats {
  * @stats: statistics on udc usage
  * @udc_usb_ep: array of usb endpoints offered by the gadget
  * @pxa_ep: array of pxa available endpoints
+ * @enabled: UDC was enabled by a previous udc_enable()
  * @config: UDC active configuration
  * @last_interface: UDC interface of the last SET_INTERFACE host request
  * @last_alternate: UDC altsetting of the last SET_INTERFACE host request
@@ -450,6 +451,7 @@ struct pxa_udc {
 	struct udc_usb_ep			udc_usb_ep[NR_USB_ENDPOINTS];
 	struct pxa_ep				pxa_ep[NR_PXA_ENDPOINTS];
 
+	unsigned				enabled:1;
 	unsigned				config:2;
 	unsigned				last_interface:3;
 	unsigned				last_alternate:3;
