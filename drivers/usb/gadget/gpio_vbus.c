@@ -16,11 +16,14 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
-#include <linux/regulator/consumer.h>
 #include <linux/usb.h>
+
+#include <linux/regulator/consumer.h>
+
 #include <linux/usb/gadget.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/usb/otg.h>
+
 
 struct gpio_vbus_data {
 	struct otg_transceiver otg;
@@ -35,6 +38,15 @@ static inline unsigned int get_irq_flags(struct resource *res)
 
 	if (res)
 		flags |= res->flags & IRQF_TRIGGER_MASK;
+
+	/* FIXME this driver won't actually work with any trigger
+	 * mode other than "both edges", will it?  If so, just
+	 * hard-wire that mode.
+	 *
+	 * And for that matter, shouldn't there be some debouncing?
+	 * Even if there's local capacitance to smooth out some of
+	 * the mechanical issues...
+	 */
 	else
 		flags |= IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
 
@@ -84,20 +96,30 @@ static irqreturn_t gpio_vbus_irq(int irq, void *data)
 	if (!gpio_vbus->otg.gadget)
 		return IRQ_HANDLED;
 
+	/* Peripheral controllers which manage the pullup themselves won't have
+	 * gpio_pullup configured here.  If it's configured here, we'll do what
+	 * isp1301_omap::b_peripheral() does and enable the pullup here... although
+	 * that complicates usb_gadget_{,dis}connect() support.
+	 */
 	gpio = pdata->gpio_pullup;
 	if (vbus) {
-		/* optionally enable D+ pullup */
-		if (gpio)
-			gpio_set_value(gpio, !pdata->gpio_pullup_inverted);
 		gpio_vbus->otg.state = OTG_STATE_B_PERIPHERAL;
 		usb_gadget_vbus_connect(gpio_vbus->otg.gadget);
+
+		set_vbus_draw(gpio_vbus, 100);
+
+		/* optionally enable D+ pullup */
+		if (gpio_is_valid(gpio))
+			gpio_set_value(gpio, !pdata->gpio_pullup_inverted);
 	} else {
+		/* optionally disable D+ pullup */
+		if (gpio_is_valid(gpio))
+			gpio_set_value(gpio, pdata->gpio_pullup_inverted);
+
 		set_vbus_draw(gpio_vbus, 0);
+
 		usb_gadget_vbus_disconnect(gpio_vbus->otg.gadget);
 		gpio_vbus->otg.state = OTG_STATE_B_IDLE;
-		/* optionally disable D+ pullup */
-		if (gpio)
-			gpio_set_value(gpio, pdata->gpio_pullup_inverted);
 	}
 
 	return IRQ_HANDLED;
@@ -126,7 +148,7 @@ int gpio_vbus_set_peripheral(struct otg_transceiver *otg,
 		set_vbus_draw(gpio_vbus, 0);
 		usb_gadget_vbus_disconnect(otg->gadget);
 		/* optionally disable D+ pullup */
-		if (gpio)
+		if (gpio_is_valid(gpio))
 			gpio_set_value(gpio, pdata->gpio_pullup_inverted);
 		otg->gadget = NULL;
 		otg->state = OTG_STATE_UNDEFINED;
@@ -169,7 +191,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 	struct resource *res;
 	int err, gpio, irq;
 
-	if (!pdata || !pdata->gpio_vbus)
+	if (!pdata || !gpio_is_valid(pdata->gpio_vbus))
 		return -EINVAL;
 	gpio = pdata->gpio_vbus;
 
@@ -201,8 +223,9 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 	} else
 		irq = gpio_to_irq(gpio);
 
+	/* if data line pullup is in use, initialize it to "not pulling up" */
 	gpio = pdata->gpio_pullup;
-	if (gpio) {
+	if (gpio_is_valid(gpio)) {
 		err = gpio_request(gpio, "udc_pullup");
 		if (err) {
 			dev_err(&pdev->dev,
@@ -221,8 +244,8 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 			irq, err);
 		goto err_irq;
 	}
-	/* only active when a gadget is registered */
 
+	/* only active when a gadget is registered */
 	err = otg_set_transceiver(&gpio_vbus->otg);
 	if (err) {
 		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
@@ -241,7 +264,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 err_otg:
 	free_irq(irq, &pdev->dev);
 err_irq:
-	if (pdata->gpio_pullup)
+	if (gpio_is_valid(pdata->gpio_pullup))
 		gpio_free(pdata->gpio_pullup);
 	gpio_free(pdata->gpio_vbus);
 err_gpio:
@@ -261,6 +284,8 @@ static int __exit gpio_vbus_remove(struct platform_device *pdev)
 	otg_set_transceiver(NULL);
 
 	free_irq(gpio_to_irq(gpio), &pdev->dev);
+	if (gpio_is_valid(pdata->gpio_pullup))
+		gpio_free(pdata->gpio_pullup);
 	gpio_free(gpio);
 	platform_set_drvdata(pdev, NULL);
 	kfree(gpio_vbus);
@@ -282,13 +307,12 @@ static int __init gpio_vbus_init(void)
 {
 	return platform_driver_probe(&gpio_vbus_driver, gpio_vbus_probe);
 }
+module_init(gpio_vbus_init);
 
 static void __exit gpio_vbus_exit(void)
 {
 	platform_driver_unregister(&gpio_vbus_driver);
 }
-
-module_init(gpio_vbus_init);
 module_exit(gpio_vbus_exit);
 
 MODULE_DESCRIPTION("simple GPIO controlled OTG transceiver driver");

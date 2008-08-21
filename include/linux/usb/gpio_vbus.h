@@ -14,13 +14,21 @@
 /**
  * struct gpio_vbus_mach_info - configuration for gpio_vbus
  * @gpio_vbus: VBUS sensing GPIO
- * @gpio_vbus_inverted: gpio_vbus is active low
- * @gpio_pullup: optional D+ pullup GPIO
- * @gpio_pullup_inverted: gpio_pullup is active low
+ * @gpio_pullup: optional D+ or D- pullup GPIO (else negative/invalid)
+ * @gpio_vbus_inverted: true if gpio_vbus is active low
+ * @gpio_pullup_inverted: true if gpio_pullup is active low
+ *
+ * The VBUS sensing GPIO should have a pulldown, which will normally be
+ * part of a resistor ladder turning a 4.0V-5.25V level on VBUS into a
+ * value the GPIO detects as active.  Some systems will use comparators.
+ *
+ * Similarly, the data lines will normally have pulldowns on both sides,
+ * which the pullup should be able to override without degrading USB's
+ * differential signaling.
  */
 struct gpio_vbus_mach_info {
 	int gpio_vbus;
-	int gpio_vbus_inverted;
 	int gpio_pullup;
-	int gpio_pullup_inverted;
+	bool gpio_vbus_inverted;
+	bool gpio_pullup_inverted;
 };
