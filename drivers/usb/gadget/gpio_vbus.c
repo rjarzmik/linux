@@ -17,6 +17,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
+#include <linux/workqueue.h>
 
 #include <linux/regulator/consumer.h>
 
@@ -30,6 +31,7 @@ struct gpio_vbus_data {
 	struct device          *dev;
 	struct regulator       *vbus_draw;
 	int			vbus_draw_enabled;
+	struct work_struct	work;
 };
 
 static inline unsigned int get_irq_flags(struct resource *res)
@@ -77,24 +79,26 @@ static void set_vbus_draw(struct gpio_vbus_data *gpio_vbus, unsigned mA)
 	}
 }
 
-/* VBUS change IRQ handler */
-static irqreturn_t gpio_vbus_irq(int irq, void *data)
+static int is_vbus_powered(struct gpio_vbus_mach_info *pdata)
 {
-	struct platform_device *pdev = data;
-	struct gpio_vbus_mach_info *pdata = pdev->dev.platform_data;
-	struct gpio_vbus_data *gpio_vbus = platform_get_drvdata(pdev);
-	int gpio, vbus;
+	int vbus;
 
 	vbus = gpio_get_value(pdata->gpio_vbus);
 	if (pdata->gpio_vbus_inverted)
 		vbus = !vbus;
 
-	dev_dbg(&pdev->dev, "VBUS %s (gadget: %s)\n",
-		vbus ? "supplied" : "inactive",
-		gpio_vbus->otg.gadget ? gpio_vbus->otg.gadget->name : "none");
+	return vbus;
+}
+
+static void gpio_vbus_work(struct work_struct *work)
+{
+	struct gpio_vbus_data *gpio_vbus =
+		container_of(work, struct gpio_vbus_data, work);
+	struct gpio_vbus_mach_info *pdata = gpio_vbus->dev->platform_data;
+	int gpio;
 
 	if (!gpio_vbus->otg.gadget)
-		return IRQ_HANDLED;
+		return;
 
 	/* Peripheral controllers which manage the pullup themselves won't have
 	 * gpio_pullup configured here.  If it's configured here, we'll do what
@@ -102,7 +106,7 @@ static irqreturn_t gpio_vbus_irq(int irq, void *data)
 	 * that complicates usb_gadget_{,dis}connect() support.
 	 */
 	gpio = pdata->gpio_pullup;
-	if (vbus) {
+	if (is_vbus_powered(pdata)) {
 		gpio_vbus->otg.state = OTG_STATE_B_PERIPHERAL;
 		usb_gadget_vbus_connect(gpio_vbus->otg.gadget);
 
@@ -121,6 +125,21 @@ static irqreturn_t gpio_vbus_irq(int irq, void *data)
 		usb_gadget_vbus_disconnect(gpio_vbus->otg.gadget);
 		gpio_vbus->otg.state = OTG_STATE_B_IDLE;
 	}
+}
+
+/* VBUS change IRQ handler */
+static irqreturn_t gpio_vbus_irq(int irq, void *data)
+{
+	struct platform_device *pdev = data;
+	struct gpio_vbus_mach_info *pdata = pdev->dev.platform_data;
+	struct gpio_vbus_data *gpio_vbus = platform_get_drvdata(pdev);
+
+	dev_dbg(&pdev->dev, "VBUS %s (gadget: %s)\n",
+		is_vbus_powered(pdata) ? "supplied" : "inactive",
+		gpio_vbus->otg.gadget ? gpio_vbus->otg.gadget->name : "none");
+
+	if (gpio_vbus->otg.gadget)
+		schedule_work(&gpio_vbus->work);
 
 	return IRQ_HANDLED;
 }
@@ -244,6 +263,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 			irq, err);
 		goto err_irq;
 	}
+	INIT_WORK(&gpio_vbus->work, gpio_vbus_work);
 
 	/* only active when a gadget is registered */
 	err = otg_set_transceiver(&gpio_vbus->otg);
@@ -255,7 +275,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 
 	gpio_vbus->vbus_draw = regulator_get(&pdev->dev, "vbus_draw");
 	if (IS_ERR(gpio_vbus->vbus_draw)) {
-		dev_dbg(&pdev->dev, "can't get vbus_draw regulator, err: %d\n",
+		dev_dbg(&pdev->dev, "can't get vbus_draw regulator, err: %ld\n",
 			PTR_ERR(gpio_vbus->vbus_draw));
 		gpio_vbus->vbus_draw = NULL;
 	}
