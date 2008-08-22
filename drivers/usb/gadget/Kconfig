@@ -79,6 +79,14 @@ config USB_GADGET_DEBUG_FS
 	   Enable these files by choosing "Y" here.  If in doubt, or
 	   to conserve kernel memory, say "N".
 
+config USB_GPIO_VBUS
+        tristate "GPIO VBus transceiver"
+        help
+          Provides simple GPIO VBUS sensing for controllers with an
+          internal transceiver via the otg_transceiver interface and
+          optionally control of a D+ pullup GPIO as well as a VBUS
+          current limit regulator.
+
 config	USB_GADGET_SELECTED
 	boolean
 
@@ -402,14 +410,6 @@ endchoice
 #
 # USB Transceiver Drivers
 #
-config USB_GPIO_VBUS
-	tristate
-	help
-	  Provides simple GPIO VBUS sensing for controllers with an
-	  internal transceiver via the otg_transceiver interface and
-	  optionally control of a D+ pullup GPIO as well as a VBUS 
-	  current limit regulator.
-
 config USB_GADGET_DUALSPEED
 	bool
 	depends on USB_GADGET
