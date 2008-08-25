@@ -2292,10 +2292,13 @@ err_clk:
 static int __exit pxa_udc_remove(struct platform_device *_dev)
 {
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
+	int gpio = udc->mach->gpio_pullup;
 
 	usb_gadget_unregister_driver(udc->driver);
 	free_irq(udc->irq, udc);
 	pxa_cleanup_debugfs(udc);
+	if (gpio)
+		gpio_free(gpio);
 
 	platform_set_drvdata(_dev, NULL);
 	the_controller = NULL;
