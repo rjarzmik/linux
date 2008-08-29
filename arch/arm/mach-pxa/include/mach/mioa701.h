@@ -14,6 +14,7 @@
 #define GPIO18_POWEROFF				18
 #define GPIO87_LCD_POWER			87
 #define GPIO96_AC_DETECT			96
+#define GPIO80_MAYBE_CHARGE_VDROP		80	/* Drop of 88mV */
 
 /* USB */
 #define GPIO13_nUSB_DETECT			13
@@ -25,7 +26,10 @@
 #define GPIO91_SDIO_EN				91
 
 /* Bluetooth */
+#define GPIO14_BT_nACTIVITY			11
 #define GPIO83_BT_ON				83
+#define GPIO77_BT_UNKNOWN1			77
+#define GPIO86_BT_MAYBE_nRESET			86
 
 /* GPS */
 #define GPIO23_GPS_UNKNOWN1			23
