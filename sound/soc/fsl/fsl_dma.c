@@ -689,6 +689,15 @@ static snd_pcm_uframes_t fsl_dma_pointer(struct snd_pcm_substream *substream)
 	else
 		position = in_be32(&dma_channel->dar);
 
+	if ((position < dma_private->dma_buf_phys) ||
+	    (position > dma_private->dma_buf_end)) {
+		dev_err(substream->pcm->card->dev,
+			"DMA(%u,%u) pointer is out of range, halting stream\n",
+			dma_private->dma_info->controller_id,
+			dma_private->dma_info->channel_id);
+		return SNDRV_PCM_POS_XRUN;
+	}
+
 	frames = bytes_to_frames(runtime, position - dma_private->dma_buf_phys);
 
 	/*
