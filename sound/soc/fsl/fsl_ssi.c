@@ -344,30 +344,28 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 }
 
 /**
- * fsl_ssi_prepare: prepare the SSI.
+ * fsl_ssi_hw_params: program the sample size
  *
  * Most of the SSI registers have been programmed in the startup function,
- * but the word length must be programmed here.  Unfortunately, programming
- * the SxCCR.WL bits requires the SSI to be temporarily disabled.  This can
- * cause a problem with supporting simultaneous playback and capture.  If
- * the SSI is already playing a stream, then that stream may be temporarily
- * stopped when you start capture.
+ * but the word length must be programmed here.  Since we support
+ * synchronous mode only, only the master stream can program STCRR[WL].
  *
  * Note: The SxCCR.DC and SxCCR.PM bits are only used if the SSI is the
  * clock master.
  */
-static int fsl_ssi_prepare(struct snd_pcm_substream *substream,
-	struct snd_soc_dai *cpu_dai)
+static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *hw_params, struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_ssi_info *ssi_info = cpu_dai->private_data;
 
 	if (substream == ssi_info->master_stream) {
-		struct snd_pcm_runtime *runtime = substream->runtime;
 		struct ccsr_ssi __iomem *ssi = ssi_info->ssi;
+		unsigned int sample_size =
+			snd_pcm_format_width(params_format(hw_params));
 		u32 wl;
 
 		/* The SSI should always be disabled at this points (SSIEN=0) */
-		wl = CCSR_SSI_SxCCR_WL(snd_pcm_format_width(runtime->format));
+		wl = CCSR_SSI_SxCCR_WL(sample_size);
 
 		/* In synchronous mode, the SSI uses STCCR for capture */
 		clrsetbits_be32(&ssi->stccr, CCSR_SSI_SxCCR_WL_MASK, wl);
@@ -588,7 +586,7 @@ static struct snd_soc_dai_caps capture = {
 
 static struct snd_soc_dai_ops ops = {
 	.startup	= fsl_ssi_startup,
-	.prepare	= fsl_ssi_prepare,
+	.hw_params	= fsl_ssi_hw_params,
 	.shutdown	= fsl_ssi_shutdown,
 	.trigger	= fsl_ssi_trigger,
 
