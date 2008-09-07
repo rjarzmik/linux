@@ -684,8 +684,7 @@ static int snd_ctl_elem_info_user(struct snd_ctl_file *ctl,
 	return result;
 }
 
-static int snd_ctl_elem_read(struct snd_card *card,
-			     struct snd_ctl_elem_value *control)
+int snd_ctl_elem_read(struct snd_card *card, struct snd_ctl_elem_value *control)
 {
 	struct snd_kcontrol *kctl;
 	struct snd_kcontrol_volatile *vd;
@@ -735,8 +734,8 @@ static int snd_ctl_elem_read_user(struct snd_card *card,
 	return result;
 }
 
-static int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
-			      struct snd_ctl_elem_value *control)
+int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
+		       struct snd_ctl_elem_value *control)
 {
 	struct snd_kcontrol *kctl;
 	struct snd_kcontrol_volatile *vd;
