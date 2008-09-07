@@ -9,14 +9,16 @@
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
+ *
+ *  Revision history
+ *    12th Aug 2005   Initial version.
  */
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
-#include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -24,13 +26,11 @@
 
 #include <mach/hardware.h>
 #include <mach/pxa-regs.h>
-#include <mach/pxa2xx-gpio.h>
 #include <mach/audio.h>
 
 #include "pxa2xx-pcm.h"
-#include "pxa2xx-i2s.h"
 
-struct pxa_i2s_port {
+struct pxa_i2s_priv {
 	u32 sadiv;
 	u32 sacr0;
 	u32 sacr1;
@@ -38,8 +38,6 @@ struct pxa_i2s_port {
 	int master;
 	u32 fmt;
 };
-static struct pxa_i2s_port pxa_i2s;
-static struct clk *clk_i2s;
 
 static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_out = {
 	.name			= "I2S PCM Stereo out",
@@ -56,6 +54,8 @@ static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_in = {
 	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };
+
+static struct clk *i2s_clk;
 
 static struct pxa2xx_gpio gpio_bus[] = {
 	{ /* I2S SoC Slave */
@@ -77,15 +77,10 @@ static struct pxa2xx_gpio gpio_bus[] = {
 	},
 };
 
-static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream)
+static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-
-	if (IS_ERR(clk_i2s))
-		return PTR_ERR(clk_i2s);
-
-	if (!cpu_dai->active) {
+	if (!dai->active) {
 		SACR0 |= SACR0_RST;
 		SACR0 = 0;
 	}
@@ -107,22 +102,24 @@ static int pxa_i2s_wait(void)
 static int pxa2xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
+	struct pxa_i2s_priv *pxa_i2s = cpu_dai->private_data;
+
 	/* interface format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		pxa_i2s.fmt = 0;
+		pxa_i2s->fmt = 0;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		pxa_i2s.fmt = SACR1_AMSL;
+		pxa_i2s->fmt = SACR1_AMSL;
 		break;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
-		pxa_i2s.master = 1;
+		pxa_i2s->master = 1;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
-		pxa_i2s.master = 0;
+		pxa_i2s->master = 0;
 		break;
 	default:
 		break;
@@ -133,44 +130,44 @@ static int pxa2xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 static int pxa2xx_i2s_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		int clk_id, unsigned int freq, int dir)
 {
+	struct pxa_i2s_priv *pxa_i2s = cpu_dai->private_data;
+
 	if (clk_id != PXA2XX_I2S_SYSCLK)
 		return -ENODEV;
 
-	if (pxa_i2s.master && dir == SND_SOC_CLOCK_OUT)
-		pxa_gpio_mode(gpio_bus[pxa_i2s.master].sys);
+	if (pxa_i2s->master && dir == SND_SOC_CLOCK_OUT)
+		pxa_gpio_mode(gpio_bus[pxa_i2s->master].sys);
 
 	return 0;
 }
 
 static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct pxa_i2s_priv *pxa_i2s = dai->private_data;
 
-	pxa_gpio_mode(gpio_bus[pxa_i2s.master].rx);
-	pxa_gpio_mode(gpio_bus[pxa_i2s.master].tx);
-	pxa_gpio_mode(gpio_bus[pxa_i2s.master].frm);
-	pxa_gpio_mode(gpio_bus[pxa_i2s.master].clk);
-	BUG_ON(IS_ERR(clk_i2s));
-	clk_enable(clk_i2s);
+	pxa_gpio_mode(gpio_bus[pxa_i2s->master].rx);
+	pxa_gpio_mode(gpio_bus[pxa_i2s->master].tx);
+	pxa_gpio_mode(gpio_bus[pxa_i2s->master].frm);
+	pxa_gpio_mode(gpio_bus[pxa_i2s->master].clk);
+	clk_enable(i2s_clk);
 	pxa_i2s_wait();
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		cpu_dai->dma_data = &pxa2xx_i2s_pcm_stereo_out;
+		dai->dma_data = &pxa2xx_i2s_pcm_stereo_out;
 	else
-		cpu_dai->dma_data = &pxa2xx_i2s_pcm_stereo_in;
+		dai->dma_data = &pxa2xx_i2s_pcm_stereo_in;
 
 	/* is port used by another stream */
 	if (!(SACR0 & SACR0_ENB)) {
 
 		SACR0 = 0;
 		SACR1 = 0;
-		if (pxa_i2s.master)
+		if (pxa_i2s->master)
 			SACR0 |= SACR0_BCKD;
 
 		SACR0 |= SACR0_RFTH(14) | SACR0_TFTH(1);
-		SACR1 |= pxa_i2s.fmt;
+		SACR1 |= pxa_i2s->fmt;
 	}
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		SAIMR |= SAIMR_TFS;
@@ -204,7 +201,8 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int pxa2xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
+static int pxa2xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+	struct snd_soc_dai *dai)
 {
 	int ret = 0;
 
@@ -225,7 +223,8 @@ static int pxa2xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	return ret;
 }
 
-static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream)
+static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
 {
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		SACR1 |= SACR1_DRPL;
@@ -238,24 +237,24 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream)
 	if (SACR1 & (SACR1_DREC | SACR1_DRPL)) {
 		SACR0 &= ~SACR0_ENB;
 		pxa_i2s_wait();
-		clk_disable(clk_i2s);
+		clk_disable(i2s_clk);
 	}
-
-	clk_put(clk_i2s);
 }
 
 #ifdef CONFIG_PM
-static int pxa2xx_i2s_suspend(struct platform_device *dev,
-	struct snd_soc_dai *dai)
+static int pxa2xx_i2s_suspend(struct snd_soc_dai *dai,
+	pm_message_t state)
 {
+	struct pxa_i2s_priv *pxa_i2s = dai->private_data;
+
 	if (!dai->active)
 		return 0;
 
 	/* store registers */
-	pxa_i2s.sacr0 = SACR0;
-	pxa_i2s.sacr1 = SACR1;
-	pxa_i2s.saimr = SAIMR;
-	pxa_i2s.sadiv = SADIV;
+	pxa_i2s->sacr0 = SACR0;
+	pxa_i2s->sacr1 = SACR1;
+	pxa_i2s->saimr = SAIMR;
+	pxa_i2s->sadiv = SADIV;
 
 	/* deactivate link */
 	SACR0 &= ~SACR0_ENB;
@@ -263,18 +262,19 @@ static int pxa2xx_i2s_suspend(struct platform_device *dev,
 	return 0;
 }
 
-static int pxa2xx_i2s_resume(struct platform_device *pdev,
-	struct snd_soc_dai *dai)
+static int pxa2xx_i2s_resume(struct snd_soc_dai *dai)
 {
+	struct pxa_i2s_priv *pxa_i2s = dai->private_data;
+
 	if (!dai->active)
 		return 0;
 
 	pxa_i2s_wait();
 
-	SACR0 = pxa_i2s.sacr0 &= ~SACR0_ENB;
-	SACR1 = pxa_i2s.sacr1;
-	SAIMR = pxa_i2s.saimr;
-	SADIV = pxa_i2s.sadiv;
+	SACR0 = pxa_i2s->sacr0 &= ~SACR0_ENB;
+	SACR1 = pxa_i2s->sacr1;
+	SAIMR = pxa_i2s->saimr;
+	SADIV = pxa_i2s->sadiv;
 	SACR0 |= SACR0_ENB;
 
 	return 0;
@@ -289,65 +289,98 @@ static int pxa2xx_i2s_resume(struct platform_device *pdev,
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
 		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
 
-struct snd_soc_dai pxa_i2s_dai = {
-	.name = "pxa2xx-i2s",
-	.id = 0,
-	.type = SND_SOC_DAI_I2S,
-	.suspend = pxa2xx_i2s_suspend,
-	.resume = pxa2xx_i2s_resume,
-	.playback = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = PXA2XX_I2S_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.capture = {
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = PXA2XX_I2S_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.startup = pxa2xx_i2s_startup,
-		.shutdown = pxa2xx_i2s_shutdown,
-		.trigger = pxa2xx_i2s_trigger,
-		.hw_params = pxa2xx_i2s_hw_params,},
-	.dai_ops = {
-		.set_fmt = pxa2xx_i2s_set_dai_fmt,
-		.set_sysclk = pxa2xx_i2s_set_dai_sysclk,
-	},
+/* for modprobe */
+const char pxa2xx_i2s_dai_id[] = "pxa2xx-i2s";
+EXPORT_SYMBOL_GPL(pxa2xx_i2s_dai_id);
+
+static struct snd_soc_dai_caps pxa2xx_i2s_playback = {
+	.stream_name	= "Playback",
+	.channels_min	= 2,
+	.channels_max	= 2,
+	.rates		= PXA2XX_I2S_RATES,
+	.formats	= SNDRV_PCM_FMTBIT_S16_LE,
 };
 
-EXPORT_SYMBOL_GPL(pxa_i2s_dai);
+static struct snd_soc_dai_caps pxa2xx_i2s_capture = {
+	.stream_name	= "Capture",
+	.channels_min	= 2,
+	.channels_max	= 2,
+	.rates		= PXA2XX_I2S_RATES,
+	.formats	= SNDRV_PCM_FMTBIT_S16_LE,
+};
 
-static int pxa2xx_i2s_probe(struct platform_device *dev)
+static struct snd_soc_dai_ops pxa2xx_i2s_ops = {
+	/* alsa ops */
+	.startup	= pxa2xx_i2s_startup,
+	.shutdown	= pxa2xx_i2s_shutdown,
+	.trigger	= pxa2xx_i2s_trigger,
+	.hw_params	= pxa2xx_i2s_hw_params,
+
+	/* dai ops */
+	.set_fmt	= pxa2xx_i2s_set_dai_fmt,
+	.set_sysclk	= pxa2xx_i2s_set_dai_sysclk,
+};
+
+struct snd_soc_dai_new pxa2xx_i2s_dai = {
+	.name		= pxa2xx_i2s_id,
+	.playback	= &pxa2xx_i2s_playback,
+	.capture	= &pxa2xx_i2s_capture,
+	.ops		= &pxa2xx_i2s_ops,
+};
+
+static int pxa2xx_i2s_probe(struct platform_device *pdev)
 {
-	clk_i2s = clk_get(&dev->dev, "I2SCLK");
-	return IS_ERR(clk_i2s) ? PTR_ERR(clk_i2s) : 0;
+	struct snd_soc_dai *dai;
+	struct pxa_i2s_priv *i2s;
+
+	i2s_clk = clk_get(&pdev->dev, "I2SCLK");
+	if (IS_ERR(i2s_clk))
+		return -ENODEV;
+
+	i2s = kzalloc(sizeof(struct pxa_i2s_priv), GFP_KERNEL);
+	if (i2s == NULL) {
+		clk_put(i2s_clk);
+		return -ENOMEM;
+	}
+
+	dai = snd_soc_register_codec_dai(&pxa2xx_i2s_dai, &pdev->dev);
+	if (dai == NULL) {
+		kfree(i2s);
+		clk_put(i2s_clk);
+		return -ENOMEM;
+	}
+	dai->private_data = i2s;
+	platform_set_drvdata(pdev, i2s);
+	return 0;
 }
 
-static int __devexit pxa2xx_i2s_remove(struct platform_device *dev)
+static int pxa2xx_i2s_remove(struct platform_device *pdev)
 {
-	clk_put(clk_i2s);
-	clk_i2s = ERR_PTR(-ENOENT);
+	struct snd_soc_dai *dai = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_platform_dai(dai);
+	clk_disable(i2s_clk);
+	clk_put(i2s_clk);
+	kfree(dai->private_data);
+	kfree(dai);
 	return 0;
 }
 
 static struct platform_driver pxa2xx_i2s_driver = {
-	.probe = pxa2xx_i2s_probe,
-	.remove = __devexit_p(pxa2xx_i2s_remove),
-
 	.driver = {
-		.name = "pxa2xx-i2s",
-		.owner = THIS_MODULE,
+		.name		= "pxa2xx-i2s",
+		.owner		= THIS_MODULE,
 	},
+	.probe		= pxa2xx_i2s_probe,
+	.remove		= __devexit_p(pxa2xx_i2s_remove),
 };
 
-static int __init pxa2xx_i2s_init(void)
+static __init int pxa2xx_i2s_init(void)
 {
-	clk_i2s = ERR_PTR(-ENOENT);
 	return platform_driver_register(&pxa2xx_i2s_driver);
 }
 
-static void __exit pxa2xx_i2s_exit(void)
+static __exit void pxa2xx_i2s_exit(void)
 {
 	platform_driver_unregister(&pxa2xx_i2s_driver);
 }
@@ -355,7 +388,6 @@ static void __exit pxa2xx_i2s_exit(void)
 module_init(pxa2xx_i2s_init);
 module_exit(pxa2xx_i2s_exit);
 
-/* Module information */
-MODULE_AUTHOR("Liam Girdwood, liam.girdwood@wolfsonmicro.com, www.wolfsonmicro.com");
-MODULE_DESCRIPTION("pxa2xx I2S SoC Interface");
+MODULE_AUTHOR("Liam Girdwood");
+MODULE_DESCRIPTION("PXA2xx I2S module");
 MODULE_LICENSE("GPL");

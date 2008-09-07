@@ -61,12 +61,11 @@ static void pxa2xx_pcm_dma_irq(int dma_ch, void *dev_id)
 	dcsr = DCSR(dma_ch);
 	DCSR(dma_ch) = dcsr & ~DCSR_STOPIRQEN;
 
-	if (dcsr & DCSR_ENDINTR) {
+	if (dcsr & DCSR_ENDINTR)
 		snd_pcm_period_elapsed(substream);
-	} else {
-		printk(KERN_ERR "%s: DMA error on channel %d (DCSR=%#x)\n",
-			prtd->params->name, dma_ch, dcsr);
-	}
+	else
+		printk( KERN_ERR "%s: DMA error on channel %d (DCSR=%#x)\n",
+			prtd->params->name, dma_ch, dcsr );
 }
 
 static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -74,8 +73,9 @@ static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct pxa2xx_runtime_data *prtd = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct pxa2xx_pcm_dma_params *dma = rtd->dai->cpu_dai->dma_data;
+	struct snd_soc_pcm_runtime *pcm_runtime = substream->private_data;
+	struct snd_soc_dai *cpu_dai = pcm_runtime->cpu_dai;
+	struct pxa2xx_pcm_dma_params *dma = cpu_dai->dma_data;
 	size_t totsize = params_buffer_bytes(params);
 	size_t period = params_period_bytes(params);
 	pxa_dma_desc *dma_desc;
@@ -84,7 +84,7 @@ static int pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	/* return if this is a bufferless transfer e.g.
 	 * codec <--> BT codec or GSM modem -- lg FIXME */
-	if (!dma)
+	 if (!dma)
 		return 0;
 
 	/* this may get called several times by oss emulation
@@ -137,13 +137,15 @@ static int pxa2xx_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct pxa2xx_runtime_data *prtd = substream->runtime->private_data;
 
-	if (prtd && prtd->params)
-		*prtd->params->drcmr = 0;
+	if (prtd) {
+		if (prtd->params)
+			*prtd->params->drcmr = 0;
 
-	if (prtd->dma_ch) {
-		snd_pcm_set_runtime_buffer(substream, NULL);
-		pxa_free_dma(prtd->dma_ch);
-		prtd->dma_ch = 0;
+		if (prtd->dma_ch) {
+			snd_pcm_set_runtime_buffer(substream, NULL);
+			pxa_free_dma(prtd->dma_ch);
+			prtd->dma_ch = 0;
+		}
 	}
 
 	return 0;
@@ -248,7 +250,6 @@ static int pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 		ret = -ENOMEM;
 		goto err1;
 	}
-
 	runtime->private_data = prtd;
 	return 0;
 
@@ -266,6 +267,7 @@ static int pxa2xx_pcm_close(struct snd_pcm_substream *substream)
 	dma_free_writecombine(substream->pcm->card->dev, PAGE_SIZE,
 			      prtd->dma_desc_array, prtd->dma_desc_array_phys);
 	kfree(prtd);
+	runtime->private_data = NULL;
 	return 0;
 }
 
@@ -279,7 +281,7 @@ static int pxa2xx_pcm_mmap(struct snd_pcm_substream *substream,
 				     runtime->dma_bytes);
 }
 
-struct snd_pcm_ops pxa2xx_pcm_ops = {
+static const struct snd_pcm_ops pxa2xx_pcm_ops = {
 	.open		= pxa2xx_pcm_open,
 	.close		= pxa2xx_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -330,7 +332,8 @@ static void pxa2xx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 
 static u64 pxa2xx_pcm_dmamask = DMA_32BIT_MASK;
 
-int pxa2xx_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
+static int pxa2xx_pcm_new(struct snd_soc_platform *platform,
+	struct snd_card *card, int playback, int capture,
 	struct snd_pcm *pcm)
 {
 	int ret = 0;
@@ -340,14 +343,14 @@ int pxa2xx_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_32BIT_MASK;
 
-	if (dai->playback.channels_min) {
+	if (playback) {
 		ret = pxa2xx_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			goto out;
 	}
 
-	if (dai->capture.channels_min) {
+	if (capture) {
 		ret = pxa2xx_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -357,13 +360,64 @@ int pxa2xx_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 	return ret;
 }
 
-struct snd_soc_platform pxa2xx_soc_platform = {
-	.name		= "pxa2xx-audio",
-	.pcm_ops 	= &pxa2xx_pcm_ops,
+const char pxa_platform_id[] = "pxa2xx-pcm";
+EXPORT_SYMBOL_GPL(pxa_platform_id);
+
+static struct snd_soc_platform_new pxa2xx_platform = {
+	.name		= pxa_platform_id,
+	.pcm_ops	= &pxa2xx_pcm_ops,
 	.pcm_new	= pxa2xx_pcm_new,
 	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
 };
-EXPORT_SYMBOL_GPL(pxa2xx_soc_platform);
+
+static int pxa2xx_pcm_probe(struct platform_device *pdev)
+{
+	struct snd_soc_platform *platform;
+	int ret;
+
+	platform = snd_soc_new_platform(&pxa2xx_platform);
+	if (platform == NULL) {
+		dev_err(&pdev->dev, "Unable to allocate ASoC platform\n");
+		return -ENOMEM;
+	}
+
+	platform_set_drvdata(pdev, platform);
+	ret = snd_soc_register_platform(platform, &pdev->dev);
+	if (ret < 0)
+		snd_soc_free_platform(platform);
+
+	return ret;
+}
+
+static int pxa2xx_pcm_remove(struct platform_device *pdev)
+{
+	struct snd_soc_platform *platform = platform_get_drvdata(pdev);
+
+	snd_soc_free_platform(platform);
+	return 0;
+}
+
+static struct platform_driver pxa2xx_pcm_driver = {
+	.driver = {
+		.name		= pxa_platform_id,
+		.owner		= THIS_MODULE,
+	},
+	.probe		= pxa2xx_pcm_probe,
+	.remove		= __devexit_p(pxa2xx_pcm_remove),
+};
+
+static __init int pxa2xx_pcm_init(void)
+{
+	return platform_driver_register(&pxa2xx_pcm_driver);
+}
+
+static __exit void pxa2xx_pcm_exit(void)
+{
+	platform_driver_unregister(&pxa2xx_pcm_driver);
+}
+
+module_init(pxa2xx_pcm_init);
+module_exit(pxa2xx_pcm_exit);
 
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("Intel PXA2xx PCM DMA module");

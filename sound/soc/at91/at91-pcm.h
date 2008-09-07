@@ -19,7 +19,7 @@
 #ifndef _AT91_PCM_H
 #define _AT91_PCM_H
 
-#include <mach/hardware.h>
+#include <asm/arch/hardware.h>
 
 struct at91_ssc_periph {
 	void __iomem	*base;
@@ -64,7 +64,7 @@ struct at91_pcm_dma_params {
 	void (*dma_intr_handler)(u32, struct snd_pcm_substream *);
 };
 
-extern struct snd_soc_platform at91_soc_platform;
+extern const char at91_platform_id[];
 
 #define at91_ssc_read(a)	((unsigned long) __raw_readl(a))
 #define at91_ssc_write(a,v)	__raw_writel((v),(a))

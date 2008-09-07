@@ -12,6 +12,11 @@
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
+ *
+ *
+ *  Revision history
+ *    11th Dec 2006   Merged with Simtec driver
+ *    10th Nov 2006   Initial version.
  */
 
 #include <linux/init.h>
@@ -27,12 +32,12 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <mach/hardware.h>
-#include <mach/regs-gpio.h>
-#include <mach/regs-clock.h>
-#include <mach/audio.h>
+#include <asm/hardware.h>
+#include <asm/arch/regs-gpio.h>
+#include <asm/arch/regs-clock.h>
+#include <asm/arch/audio.h>
 #include <asm/dma.h>
-#include <mach/dma.h>
+#include <asm/arch/dma.h>
 
 #include <asm/plat-s3c24xx/regs-iis.h>
 
@@ -41,7 +46,7 @@
 
 #define S3C24XX_I2S_DEBUG 0
 #if S3C24XX_I2S_DEBUG
-#define DBG(x...) printk(KERN_DEBUG "s3c24xx-i2s: " x)
+#define DBG(x...) printk(KERN_DEBUG x)
 #else
 #define DBG(x...)
 #endif
@@ -84,7 +89,7 @@ static void s3c24xx_snd_txctrl(int on)
 	u32 iiscon;
 	u32 iismod;
 
-	DBG("Entered %s\n", __func__);
+	DBG("Entered %s\n", __FUNCTION__);
 
 	iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
 	iiscon  = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
@@ -129,7 +134,7 @@ static void s3c24xx_snd_rxctrl(int on)
 	u32 iiscon;
 	u32 iismod;
 
-	DBG("Entered %s\n", __func__);
+	DBG("Entered %s\n", __FUNCTION__);
 
 	iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
 	iiscon  = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
@@ -177,7 +182,7 @@ static int s3c24xx_snd_lrsync(void)
 	u32 iiscon;
 	int timeout = 50; /* 5ms */
 
-	DBG("Entered %s\n", __func__);
+	DBG("Entered %s\n", __FUNCTION__);
 
 	while (1) {
 		iiscon = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
@@ -197,7 +202,7 @@ static int s3c24xx_snd_lrsync(void)
  */
 static inline int s3c24xx_snd_is_clkmaster(void)
 {
-	DBG("Entered %s\n", __func__);
+	DBG("Entered %s\n", __FUNCTION__);
 
 	return (readl(s3c24xx_i2s.regs + S3C2410_IISMOD) & S3C2410_IISMOD_SLAVE) ? 0:1;
 }
@@ -205,12 +210,12 @@ static inline int s3c24xx_snd_is_clkmaster(void)
 /*
  * Set S3C24xx I2S DAI format
  */
-static int s3c24xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
+static int s3c24xx_i2s_set_fmt(struct snd_soc_cpu_dai *cpu_dai,
 		unsigned int fmt)
 {
 	u32 iismod;
 
-	DBG("Entered %s\n", __func__);
+	DBG("Entered %s\n", __FUNCTION__);
 
 	iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 	DBG("hw_params r: IISMOD: %lx \n", iismod);
@@ -248,7 +253,7 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	u32 iismod;
 
-	DBG("Entered %s\n", __func__);
+	DBG("Entered %s\n", __FUNCTION__);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		rtd->dai->cpu_dai->dma_data = &s3c24xx_i2s_pcm_stereo_out;
@@ -276,7 +281,7 @@ static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	int ret = 0;
 
-	DBG("Entered %s\n", __func__);
+	DBG("Entered %s\n", __FUNCTION__);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -313,12 +318,12 @@ exit_err:
 /*
  * Set S3C24xx Clock source
  */
-static int s3c24xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
+static int s3c24xx_i2s_set_sysclk(struct snd_soc_cpu_dai *cpu_dai,
 	int clk_id, unsigned int freq, int dir)
 {
 	u32 iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 
-	DBG("Entered %s\n", __func__);
+	DBG("Entered %s\n", __FUNCTION__);
 
 	iismod &= ~S3C2440_IISMOD_MPLL;
 
@@ -339,12 +344,12 @@ static int s3c24xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 /*
  * Set S3C24xx Clock dividers
  */
-static int s3c24xx_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
+static int s3c24xx_i2s_set_clkdiv(struct snd_soc_cpu_dai *cpu_dai,
 	int div_id, int div)
 {
 	u32 reg;
 
-	DBG("Entered %s\n", __func__);
+	DBG("Entered %s\n", __FUNCTION__);
 
 	switch (div_id) {
 	case S3C24XX_DIV_BCLK:
@@ -368,7 +373,7 @@ static int s3c24xx_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 }
 
 /*
- * To avoid duplicating clock code, allow machine driver to
+ * To avoid duplicating clock code, allow soc_card driver to
  * get the clockrate from here.
  */
 u32 s3c24xx_i2s_get_clockrate(void)
@@ -377,10 +382,9 @@ u32 s3c24xx_i2s_get_clockrate(void)
 }
 EXPORT_SYMBOL_GPL(s3c24xx_i2s_get_clockrate);
 
-static int s3c24xx_i2s_probe(struct platform_device *pdev,
-			     struct snd_soc_dai *dai)
+static int s3c24xx_i2s_probe(struct platform_device *pdev)
 {
-	DBG("Entered %s\n", __func__);
+	DBG("Entered %s\n", __FUNCTION__);
 
 	s3c24xx_i2s.regs = ioremap(S3C2410_PA_IIS, 0x100);
 	if (s3c24xx_i2s.regs == NULL)
@@ -410,11 +414,9 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev,
 }
 
 #ifdef CONFIG_PM
-static int s3c24xx_i2s_suspend(struct platform_device *pdev,
-		struct snd_soc_dai *cpu_dai)
+int s3c24xx_i2s_suspend(struct platform_device *pdev,
+		struct snd_soc_cpu_dai *cpu_dai)
 {
-	DBG("Entered %s\n", __func__);
-
 	s3c24xx_i2s.iiscon = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
 	s3c24xx_i2s.iismod = readl(s3c24xx_i2s.regs + S3C2410_IISMOD);
 	s3c24xx_i2s.iisfcon = readl(s3c24xx_i2s.regs + S3C2410_IISFCON);
@@ -425,10 +427,9 @@ static int s3c24xx_i2s_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int s3c24xx_i2s_resume(struct platform_device *pdev,
-		struct snd_soc_dai *cpu_dai)
+int s3c24xx_i2s_resume(struct platform_device *pdev,
+		struct snd_soc_cpu_dai *cpu_dai)
 {
-	DBG("Entered %s\n", __func__);
 	clk_enable(s3c24xx_i2s.iis_clk);
 
 	writel(s3c24xx_i2s.iiscon, s3c24xx_i2s.regs + S3C2410_IISCON);
@@ -449,7 +450,7 @@ static int s3c24xx_i2s_resume(struct platform_device *pdev,
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
 	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
 
-struct snd_soc_dai s3c24xx_i2s_dai = {
+struct snd_soc_cpu_dai s3c24xx_i2s_dai = {
 	.name = "s3c24xx-i2s",
 	.id = 0,
 	.type = SND_SOC_DAI_I2S,

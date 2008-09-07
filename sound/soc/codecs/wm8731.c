@@ -5,7 +5,7 @@
  *
  * Author: Richard Purdie <richard@openedhand.com>
  *
- * Based on wm8753.c by Liam Girdwood
+ * Based on wm8731.c by Liam Girdwood
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -29,13 +28,31 @@
 #include "wm8731.h"
 
 #define AUDIO_NAME "wm8731"
-#define WM8731_VERSION "0.13"
+#define WM8731_VERSION "0.21"
 
-struct snd_soc_codec_device soc_codec_dev_wm8731;
+/*
+ * Debug
+ */
+
+#define WM8731_DEBUG 0
+
+#ifdef WM8731_DEBUG
+#define dbg(format, arg...) \
+	printk(KERN_DEBUG AUDIO_NAME ": " format "\n" , ## arg)
+#else
+#define dbg(format, arg...) do {} while (0)
+#endif
+#define err(format, arg...) \
+	printk(KERN_ERR AUDIO_NAME ": " format "\n" , ## arg)
+#define info(format, arg...) \
+	printk(KERN_INFO AUDIO_NAME ": " format "\n" , ## arg)
+#define warn(format, arg...) \
+	printk(KERN_WARNING AUDIO_NAME ": " format "\n" , ## arg)
 
 /* codec private data */
-struct wm8731_priv {
+struct wm8731_data {
 	unsigned int sysclk;
+	struct snd_soc_dai *dai;
 };
 
 /*
@@ -91,8 +108,8 @@ static int wm8731_write(struct snd_soc_codec *codec, unsigned int reg,
 	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
 	data[1] = value & 0x00ff;
 
-	wm8731_write_reg_cache(codec, reg, value);
-	if (codec->hw_write(codec->control_data, data, 2) == 2)
+	wm8731_write_reg_cache (codec, reg, value);
+	if (codec->soc_phys_write(codec->control_data, (long)data, 2) == 2)
 		return 0;
 	else
 		return -EIO;
@@ -129,22 +146,6 @@ SOC_SINGLE("Store DC Offset Switch", WM8731_APDIGI, 4, 1, 0),
 SOC_ENUM("Playback De-emphasis", wm8731_enum[1]),
 };
 
-/* add non dapm controls */
-static int wm8731_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8731_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&wm8731_snd_controls[i],
-						codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 /* Output Mixer */
 static const struct snd_kcontrol_new wm8731_output_mixer_controls[] = {
 SOC_DAPM_SINGLE("Line Bypass Switch", WM8731_APANA, 3, 1, 0),
@@ -174,7 +175,7 @@ SND_SOC_DAPM_INPUT("RLINEIN"),
 SND_SOC_DAPM_INPUT("LLINEIN"),
 };
 
-static const struct snd_soc_dapm_route intercon[] = {
+static const struct snd_soc_dapm_route audio_map[] = {
 	/* output mixer */
 	{"Output Mixer", "Line Bypass Switch", "Line Input"},
 	{"Output Mixer", "HiFi Playback Switch", "DAC"},
@@ -197,15 +198,24 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Mic Bias", NULL, "MICIN"},
 };
 
-static int wm8731_add_widgets(struct snd_soc_codec *codec)
+static int wm8731_add_widgets(struct snd_soc_codec *codec,
+	struct snd_soc_card *soc_card)
 {
-	snd_soc_dapm_new_controls(codec, wm8731_dapm_widgets,
-				  ARRAY_SIZE(wm8731_dapm_widgets));
+	int ret;
 
-	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
+	ret = snd_soc_dapm_new_controls(soc_card, codec,
+					wm8731_dapm_widgets,
+					ARRAY_SIZE(wm8731_dapm_widgets));
+	if (ret < 0)
+		return ret;
 
-	snd_soc_dapm_new_widgets(codec);
-	return 0;
+	/* set up audio path audio_map */
+	ret = snd_soc_dapm_add_routes(soc_card, audio_map,
+				     ARRAY_SIZE(audio_map));
+	if (ret < 0)
+		return ret;
+
+	return snd_soc_dapm_init(soc_card);
 }
 
 struct _coeff_div {
@@ -264,12 +274,10 @@ static inline int get_coeff(int mclk, int rate)
 }
 
 static int wm8731_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+	struct snd_pcm_hw_params *params, struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
-	struct wm8731_priv *wm8731 = codec->private_data;
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8731_data *wm8731 = dai->codec->private_data;
 	u16 iface = wm8731_read_reg_cache(codec, WM8731_IFACE) & 0xfff3;
 	int i = get_coeff(wm8731->sysclk, params_rate(params));
 	u16 srate = (coeff_div[i].sr << 2) |
@@ -293,11 +301,10 @@ static int wm8731_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int wm8731_pcm_prepare(struct snd_pcm_substream *substream)
+static int wm8731_prepare(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = dai->codec;
 
 	/* set active */
 	wm8731_write(codec, WM8731_ACTIVE, 0x0001);
@@ -305,11 +312,10 @@ static int wm8731_pcm_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static void wm8731_shutdown(struct snd_pcm_substream *substream)
+static void wm8731_shutdown(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = dai->codec;
 
 	/* deactivate */
 	if (!codec->active) {
@@ -330,11 +336,10 @@ static int wm8731_mute(struct snd_soc_dai *dai, int mute)
 	return 0;
 }
 
-static int wm8731_set_dai_sysclk(struct snd_soc_dai *codec_dai,
+static int wm8731_set_dai_sysclk(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8731_priv *wm8731 = codec->private_data;
+	struct wm8731_data *wm8731 = dai->codec->private_data;
 
 	switch (freq) {
 	case 11289600:
@@ -349,10 +354,10 @@ static int wm8731_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 }
 
 
-static int wm8731_set_dai_fmt(struct snd_soc_dai *codec_dai,
+static int wm8731_set_dai_fmt(struct snd_soc_dai *dai,
 		unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	u16 iface = 0;
 
 	/* set master/slave audio interface */
@@ -408,23 +413,23 @@ static int wm8731_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int wm8731_set_bias_level(struct snd_soc_codec *codec,
-				 enum snd_soc_bias_level level)
+static int wm8731_set_bias_level(struct snd_soc_codec *codec, 
+	enum snd_soc_dapm_bias_level level)
 {
 	u16 reg = wm8731_read_reg_cache(codec, WM8731_PWR) & 0xff7f;
 
 	switch (level) {
-	case SND_SOC_BIAS_ON:
+	case SND_SOC_BIAS_ON: /* full On */
 		/* vref/mid, osc on, dac unmute */
 		wm8731_write(codec, WM8731_PWR, reg);
 		break;
-	case SND_SOC_BIAS_PREPARE:
+	case SND_SOC_BIAS_PREPARE: /* partial On */
 		break;
-	case SND_SOC_BIAS_STANDBY:
+	case SND_SOC_BIAS_STANDBY: /* Off, with power */
 		/* everything off except vref/vmid, */
 		wm8731_write(codec, WM8731_PWR, reg | 0x0040);
 		break;
-	case SND_SOC_BIAS_OFF:
+	case SND_SOC_BIAS_OFF: /* Off, without power */
 		/* everything off, dac mute, inactive */
 		wm8731_write(codec, WM8731_ACTIVE, 0x0);
 		wm8731_write(codec, WM8731_PWR, 0xffff);
@@ -434,46 +439,9 @@ static int wm8731_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#define WM8731_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
-		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
-		SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
-		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
-		SNDRV_PCM_RATE_96000)
-
-#define WM8731_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
-	SNDRV_PCM_FMTBIT_S24_LE)
-
-struct snd_soc_dai wm8731_dai = {
-	.name = "WM8731",
-	.playback = {
-		.stream_name = "Playback",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = WM8731_RATES,
-		.formats = WM8731_FORMATS,},
-	.capture = {
-		.stream_name = "Capture",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = WM8731_RATES,
-		.formats = WM8731_FORMATS,},
-	.ops = {
-		.prepare = wm8731_pcm_prepare,
-		.hw_params = wm8731_hw_params,
-		.shutdown = wm8731_shutdown,
-	},
-	.dai_ops = {
-		.digital_mute = wm8731_mute,
-		.set_sysclk = wm8731_set_dai_sysclk,
-		.set_fmt = wm8731_set_dai_fmt,
-	}
-};
-EXPORT_SYMBOL_GPL(wm8731_dai);
-
 static int wm8731_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = platform_get_drvdata(pdev);
 
 	wm8731_write(codec, WM8731_ACTIVE, 0x0);
 	wm8731_set_bias_level(codec, SND_SOC_BIAS_OFF);
@@ -482,8 +450,7 @@ static int wm8731_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int wm8731_resume(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = platform_get_drvdata(pdev);
 	int i;
 	u8 data[2];
 	u16 *cache = codec->reg_cache;
@@ -492,7 +459,7 @@ static int wm8731_resume(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(wm8731_reg); i++) {
 		data[0] = (i << 1) | ((cache[i] >> 8) & 0x0001);
 		data[1] = cache[i] & 0x00ff;
-		codec->hw_write(codec->control_data, data, 2);
+		codec->soc_phys_write(codec->control_data, (long)data, 2);
 	}
 	wm8731_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	wm8731_set_bias_level(codec, codec->suspend_bias_level);
@@ -500,34 +467,14 @@ static int wm8731_resume(struct platform_device *pdev)
 }
 
 /*
- * initialise the WM8731 driver
- * register the mixer and dsp interfaces with the kernel
+ * initialise the WM8731 codec
  */
-static int wm8731_init(struct snd_soc_device *socdev)
+static int wm8731_codec_init(struct snd_soc_codec *codec,
+	struct snd_soc_card *soc_card)
 {
-	struct snd_soc_codec *codec = socdev->codec;
-	int reg, ret = 0;
-
-	codec->name = "WM8731";
-	codec->owner = THIS_MODULE;
-	codec->read = wm8731_read_reg_cache;
-	codec->write = wm8731_write;
-	codec->set_bias_level = wm8731_set_bias_level;
-	codec->dai = &wm8731_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = ARRAY_SIZE(wm8731_reg);
-	codec->reg_cache = kmemdup(wm8731_reg, sizeof(wm8731_reg), GFP_KERNEL);
-	if (codec->reg_cache == NULL)
-		return -ENOMEM;
+	int reg;
 
 	wm8731_reset(codec);
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8731: failed to create pcms\n");
-		goto pcm_err;
-	}
 
 	/* power on device */
 	wm8731_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -541,191 +488,155 @@ static int wm8731_init(struct snd_soc_device *socdev)
 	wm8731_write(codec, WM8731_LINVOL, reg & ~0x0100);
 	reg = wm8731_read_reg_cache(codec, WM8731_RINVOL);
 	wm8731_write(codec, WM8731_RINVOL, reg & ~0x0100);
+		
+	snd_soc_add_new_controls(soc_card, wm8731_snd_controls, codec,
+		ARRAY_SIZE(wm8731_snd_controls));
+	wm8731_add_widgets(codec, soc_card);
 
-	wm8731_add_controls(codec);
-	wm8731_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8731: failed to register card\n");
-		goto card_err;
-	}
-
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-pcm_err:
-	kfree(codec->reg_cache);
-	return ret;
-}
-
-static struct snd_soc_device *wm8731_socdev;
-
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-
-/*
- * WM8731 2 wire address is determined by GPIO5
- * state during powerup.
- *    low  = 0x1a
- *    high = 0x1b
- */
-static unsigned short normal_i2c[] = { 0, I2C_CLIENT_END };
-
-/* Magic definition of all other variables and things */
-I2C_CLIENT_INSMOD;
-
-static struct i2c_driver wm8731_i2c_driver;
-static struct i2c_client client_template;
-
-/* If the i2c layer weren't so broken, we could pass this kind of data
-   around */
-
-static int wm8731_codec_probe(struct i2c_adapter *adap, int addr, int kind)
-{
-	struct snd_soc_device *socdev = wm8731_socdev;
-	struct wm8731_setup_data *setup = socdev->codec_data;
-	struct snd_soc_codec *codec = socdev->codec;
-	struct i2c_client *i2c;
-	int ret;
-
-	if (addr != setup->i2c_address)
-		return -ENODEV;
-
-	client_template.adapter = adap;
-	client_template.addr = addr;
-
-	i2c = kmemdup(&client_template, sizeof(client_template), GFP_KERNEL);
-	if (i2c == NULL)
-		return -ENOMEM;
-
-	i2c_set_clientdata(i2c, codec);
-	codec->control_data = i2c;
-
-	ret = i2c_attach_client(i2c);
-	if (ret < 0) {
-		pr_err("failed to attach codec at addr %x\n", addr);
-		goto err;
-	}
-
-	ret = wm8731_init(socdev);
-	if (ret < 0) {
-		pr_err("failed to initialise WM8731\n");
-		goto err;
-	}
-	return ret;
-
-err:
-	kfree(i2c);
-	return ret;
-}
-
-static int wm8731_i2c_detach(struct i2c_client *client)
-{
-	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-	i2c_detach_client(client);
-	kfree(codec->reg_cache);
-	kfree(client);
 	return 0;
 }
 
-static int wm8731_i2c_attach(struct i2c_adapter *adap)
+static void wm8731_codec_exit(struct snd_soc_codec *codec,
+	struct snd_soc_card *soc_card)
 {
-	return i2c_probe(adap, &addr_data, wm8731_codec_probe);
+	wm8731_set_bias_level(codec, SND_SOC_BIAS_OFF);
 }
 
-/* corgi i2c codec control layer */
-static struct i2c_driver wm8731_i2c_driver = {
-	.driver = {
-		.name = "WM8731 I2C Codec",
-		.owner = THIS_MODULE,
-	},
-	.id =             I2C_DRIVERID_WM8731,
-	.attach_adapter = wm8731_i2c_attach,
-	.detach_client =  wm8731_i2c_detach,
-	.command =        NULL,
+#define WM8731_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
+		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
+		SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
+		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |\
+		SNDRV_PCM_RATE_96000)
+
+#define WM8731_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
+	SNDRV_PCM_FMTBIT_S24_LE)
+
+static struct snd_soc_dai_caps wm8731_playback = {
+	.stream_name	= "Playback",
+	.channels_min	= 1,
+	.channels_max	= 2,
+	.rates		= WM8731_RATES,
+	.formats	= WM8731_FORMATS,
 };
 
-static struct i2c_client client_template = {
-	.name =   "WM8731",
-	.driver = &wm8731_i2c_driver,
+static struct snd_soc_dai_caps wm8731_capture = {
+	.stream_name	= "Capture",
+	.channels_min	= 1,
+	.channels_max	= 2,
+	.rates		= WM8731_RATES,
+	.formats	= WM8731_FORMATS,
 };
-#endif
 
-static int wm8731_probe(struct platform_device *pdev)
+static struct snd_soc_dai_ops wm8731_dai_ops = {
+	/* alsa ops */
+	.hw_params	= wm8731_hw_params,
+	.prepare	= wm8731_prepare,
+	.shutdown	= wm8731_shutdown,
+	
+	/* dai ops */
+	.digital_mute	= wm8731_mute,
+	.set_sysclk	= wm8731_set_dai_sysclk,
+	.set_fmt	= wm8731_set_dai_fmt,
+};
+
+/* for modprobe */
+const char wm8731_codec_id[] = "wm8731-codec";
+EXPORT_SYMBOL_GPL(wm8731_codec_id);
+
+const char wm8731_codec_dai_id[] = "wm8731-codec-dai";
+EXPORT_SYMBOL_GPL(wm8731_codec_dai_id);
+
+struct snd_soc_dai_new wm8731_hifi_dai = {
+	.name		= wm8731_codec_dai_id,
+	.playback	= &wm8731_playback,
+	.capture	= &wm8731_capture,
+	.ops		= &wm8731_dai_ops,
+};
+
+static struct snd_soc_codec_new wm8731_codec = {
+	.name		= wm8731_codec_id,
+	.reg_cache_size = sizeof(wm8731_reg),
+	.reg_cache_step = 1,
+	.set_bias_level	= wm8731_set_bias_level,
+	.init		= wm8731_codec_init,
+	.exit		= wm8731_codec_exit,
+	.codec_read	= wm8731_read_reg_cache,
+	.codec_write	= wm8731_write,
+};
+
+static int wm8731_codec_probe(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct wm8731_setup_data *setup;
 	struct snd_soc_codec *codec;
-	struct wm8731_priv *wm8731;
-	int ret = 0;
+	struct wm8731_data *wm8731;
+	int ret;
 
-	pr_info("WM8731 Audio Codec %s", WM8731_VERSION);
+	info("WM8731 Audio Codec %s", WM8731_VERSION);
 
-	setup = socdev->codec_data;
-	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
+	codec = snd_soc_new_codec(&wm8731_codec, (char *) wm8731_reg);
 	if (codec == NULL)
 		return -ENOMEM;
 
-	wm8731 = kzalloc(sizeof(struct wm8731_priv), GFP_KERNEL);
+	wm8731 = kzalloc(sizeof(struct wm8731_data), GFP_KERNEL);
 	if (wm8731 == NULL) {
-		kfree(codec);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto wm8731_err;
 	}
-
 	codec->private_data = wm8731;
-	socdev->codec = codec;
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
+	platform_set_drvdata(pdev, codec);
+		
+	ret = snd_soc_register_codec(codec, &pdev->dev);
+	if (ret < 0)
+		goto codec_err;
+	wm8731->dai = snd_soc_register_codec_dai(&wm8731_hifi_dai, &pdev->dev);
+	if (wm8731->dai == NULL)
+		goto codec_err;
+	return ret;
 
-	wm8731_socdev = socdev;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	if (setup->i2c_address) {
-		normal_i2c[0] = setup->i2c_address;
-		codec->hw_write = (hw_write_t)i2c_master_send;
-		ret = i2c_add_driver(&wm8731_i2c_driver);
-		if (ret != 0)
-			printk(KERN_ERR "can't add i2c driver");
-	}
-#else
-	/* Add other interfaces here */
-#endif
-
-	if (ret != 0) {
-		kfree(codec->private_data);
-		kfree(codec);
-	}
+codec_err:
+	kfree(wm8731);
+wm8731_err:
+	snd_soc_unregister_codec(codec);
+	kfree(codec->reg_cache);
+	kfree(codec);
 	return ret;
 }
 
-/* power down chip */
-static int wm8731_remove(struct platform_device *pdev)
+static int wm8731_codec_remove(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
-
-	if (codec->control_data)
-		wm8731_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&wm8731_i2c_driver);
-#endif
-	kfree(codec->private_data);
+	struct snd_soc_codec *codec = platform_get_drvdata(pdev);
+	struct wm8731_data *wm8731 = codec->private_data;
+	
+	snd_soc_unregister_codec_dai(wm8731->dai);
+	kfree(wm8731);
+	snd_soc_unregister_codec(codec);
+	kfree(codec->reg_cache);
 	kfree(codec);
-
 	return 0;
 }
 
-struct snd_soc_codec_device soc_codec_dev_wm8731 = {
-	.probe = 	wm8731_probe,
-	.remove = 	wm8731_remove,
-	.suspend = 	wm8731_suspend,
-	.resume =	wm8731_resume,
+static struct platform_driver wm8731_codec_driver = {
+	.driver = {
+		.name		= wm8731_codec_id,
+		.owner		= THIS_MODULE,
+	},
+	.probe		= wm8731_codec_probe,
+	.remove		= __devexit_p(wm8731_codec_remove),
+	.suspend	= wm8731_suspend,
+	.resume		= wm8731_resume,
 };
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm8731);
+
+static __init int wm8731_init(void)
+{
+	return platform_driver_register(&wm8731_codec_driver);
+}
+
+static __exit void wm8731_exit(void)
+{
+	platform_driver_unregister(&wm8731_codec_driver);
+}
+
+module_init(wm8731_init);
+module_exit(wm8731_exit);
 
 MODULE_DESCRIPTION("ASoC WM8731 driver");
 MODULE_AUTHOR("Richard Purdie");

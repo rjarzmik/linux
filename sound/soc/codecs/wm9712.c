@@ -9,12 +9,16 @@
  *  under  the terms of  the GNU General  Public License as published by the
  *  Free Software Foundation;  either version 2 of the  License, or (at your
  *  option) any later version.
+ *
+ *  Revision history
+ *    4th Feb 2006   Initial version.
  */
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/version.h>
 #include <linux/kernel.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>
@@ -23,11 +27,16 @@
 #include <sound/soc-dapm.h>
 #include "wm9712.h"
 
-#define WM9712_VERSION "0.4"
+#define WM9712_VERSION "0.21"
 
-static unsigned int ac97_read(struct snd_soc_codec *codec,
+struct wm9712_data {
+	struct snd_soc_dai *hifi_dai;
+	struct snd_soc_dai *aux_dai;
+};
+
+static unsigned int wm9712_ac97_read(struct snd_soc_codec *codec,
 	unsigned int reg);
-static int ac97_write(struct snd_soc_codec *codec,
+static int wm9712_ac97_write(struct snd_soc_codec *codec,
 	unsigned int reg, unsigned int val);
 
 /*
@@ -155,68 +164,53 @@ SOC_SINGLE("Mic 2 Volume", AC97_MIC, 0, 31, 1),
 SOC_SINGLE("Mic 20dB Boost Switch", AC97_MIC, 7, 1, 0),
 };
 
-/* add non dapm controls */
-static int wm9712_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm9712_snd_ac97_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&wm9712_snd_ac97_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-
 /* We have to create a fake left and right HP mixers because
  * the codec only has a single control that is shared by both channels.
  * This makes it impossible to determine the audio path.
  */
-static int mixer_event(struct snd_soc_dapm_widget *w,
+static int mixer_event (struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int event)
 {
 	u16 l, r, beep, line, phone, mic, pcm, aux;
 
-	l = ac97_read(w->codec, HPL_MIXER);
-	r = ac97_read(w->codec, HPR_MIXER);
-	beep = ac97_read(w->codec, AC97_PC_BEEP);
-	mic = ac97_read(w->codec, AC97_VIDEO);
-	phone = ac97_read(w->codec, AC97_PHONE);
-	line = ac97_read(w->codec, AC97_LINE);
-	pcm = ac97_read(w->codec, AC97_PCM);
-	aux = ac97_read(w->codec, AC97_CD);
+	l = wm9712_ac97_read(w->codec, HPL_MIXER);
+	r = wm9712_ac97_read(w->codec, HPR_MIXER);
+	beep = wm9712_ac97_read(w->codec, AC97_PC_BEEP);
+	mic = wm9712_ac97_read(w->codec, AC97_VIDEO);
+	phone = wm9712_ac97_read(w->codec, AC97_PHONE);
+	line = wm9712_ac97_read(w->codec, AC97_LINE);
+	pcm = wm9712_ac97_read(w->codec, AC97_PCM);
+	aux = wm9712_ac97_read(w->codec, AC97_CD);
 
 	if (l & 0x1 || r & 0x1)
-		ac97_write(w->codec, AC97_VIDEO, mic & 0x7fff);
+		wm9712_ac97_write(w->codec, AC97_VIDEO, mic & 0x7fff);
 	else
-		ac97_write(w->codec, AC97_VIDEO, mic | 0x8000);
+		wm9712_ac97_write(w->codec, AC97_VIDEO, mic | 0x8000);
 
 	if (l & 0x2 || r & 0x2)
-		ac97_write(w->codec, AC97_PCM, pcm & 0x7fff);
+		wm9712_ac97_write(w->codec, AC97_PCM, pcm & 0x7fff);
 	else
-		ac97_write(w->codec, AC97_PCM, pcm | 0x8000);
+		wm9712_ac97_write(w->codec, AC97_PCM, pcm | 0x8000);
 
 	if (l & 0x4 || r & 0x4)
-		ac97_write(w->codec, AC97_LINE, line & 0x7fff);
+		wm9712_ac97_write(w->codec, AC97_LINE, line & 0x7fff);
 	else
-		ac97_write(w->codec, AC97_LINE, line | 0x8000);
+		wm9712_ac97_write(w->codec, AC97_LINE, line | 0x8000);
 
 	if (l & 0x8 || r & 0x8)
-		ac97_write(w->codec, AC97_PHONE, phone & 0x7fff);
+		wm9712_ac97_write(w->codec, AC97_PHONE, phone & 0x7fff);
 	else
-		ac97_write(w->codec, AC97_PHONE, phone | 0x8000);
+		wm9712_ac97_write(w->codec, AC97_PHONE, phone | 0x8000);
 
 	if (l & 0x10 || r & 0x10)
-		ac97_write(w->codec, AC97_CD, aux & 0x7fff);
+		wm9712_ac97_write(w->codec, AC97_CD, aux & 0x7fff);
 	else
-		ac97_write(w->codec, AC97_CD, aux | 0x8000);
+		wm9712_ac97_write(w->codec, AC97_CD, aux | 0x8000);
 
 	if (l & 0x20 || r & 0x20)
-		ac97_write(w->codec, AC97_PC_BEEP, beep & 0x7fff);
+		wm9712_ac97_write(w->codec, AC97_PC_BEEP, beep & 0x7fff);
 	else
-		ac97_write(w->codec, AC97_PC_BEEP, beep | 0x8000);
+		wm9712_ac97_write(w->codec, AC97_PC_BEEP, beep | 0x8000);
 
 	return 0;
 }
@@ -426,61 +420,68 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"HPOUTR", NULL, "Headphone PGA"},
 	{"Headphone PGA", NULL, "Right HP Mixer"},
 
-	/* mono mixer */
-	{"Mono Mixer", NULL, "Left HP Mixer"},
-	{"Mono Mixer", NULL, "Right HP Mixer"},
+	/* mono hp mixer */
+	{"Mono HP Mixer", NULL, "Left HP Mixer"},
+	{"Mono HP Mixer", NULL, "Right HP Mixer"},
 
 	/* Out3 Mux */
 	{"Out3 Mux", "Left", "Left HP Mixer"},
 	{"Out3 Mux", "Mono", "Phone Mixer"},
-	{"Out3 Mux", "Left + Right", "Mono Mixer"},
+	{"Out3 Mux", "Left + Right", "Mono HP Mixer"},
 	{"Out 3 PGA", NULL, "Out3 Mux"},
 	{"OUT3", NULL, "Out 3 PGA"},
 
 	/* speaker Mux */
 	{"Speaker Mux", "Speaker Mix", "Speaker Mixer"},
-	{"Speaker Mux", "Headphone Mix", "Mono Mixer"},
+	{"Speaker Mux", "Headphone Mix", "Mono HP Mixer"},
 	{"Speaker PGA", NULL, "Speaker Mux"},
 	{"LOUT2", NULL, "Speaker PGA"},
 	{"ROUT2", NULL, "Speaker PGA"},
 };
 
-static int wm9712_add_widgets(struct snd_soc_codec *codec)
+static int wm9712_add_widgets(struct snd_soc_codec *codec,
+	struct snd_soc_card *soc_card)
 {
-	snd_soc_dapm_new_controls(codec, wm9712_dapm_widgets,
-				  ARRAY_SIZE(wm9712_dapm_widgets));
+	int ret;
 
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+	ret = snd_soc_dapm_new_controls(soc_card, codec,
+					wm9712_dapm_widgets,
+					ARRAY_SIZE(wm9712_dapm_widgets));
+	if (ret < 0)
+		return ret;
 
-	snd_soc_dapm_new_widgets(codec);
-	return 0;
+	/* set up audio path audio_map */
+	ret = snd_soc_dapm_add_routes(soc_card, audio_map,
+				     ARRAY_SIZE(audio_map));
+	if (ret < 0)
+		return ret;
+
+	return snd_soc_dapm_init(soc_card);
 }
 
-static unsigned int ac97_read(struct snd_soc_codec *codec,
+static unsigned int wm9712_ac97_read(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
 	u16 *cache = codec->reg_cache;
 
 	if (reg == AC97_RESET || reg == AC97_GPIO_STATUS ||
 		reg == AC97_VENDOR_ID1 || reg == AC97_VENDOR_ID2 ||
-		reg == AC97_REC_GAIN)
-		return soc_ac97_ops.read(codec->ac97, reg);
-	else {
-		reg = reg >> 1;
-
-		if (reg > (ARRAY_SIZE(wm9712_reg)))
-			return -EIO;
-
+		reg == AC97_REC_GAIN) {
+			return codec->soc_phys_read(codec->ac97, reg);
+		} else {
+			reg = reg >> 1;
+			if (reg > (ARRAY_SIZE(wm9712_reg)))
+				return -EIO;
 		return cache[reg];
 	}
 }
 
-static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
+static int wm9712_ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int val)
 {
 	u16 *cache = codec->reg_cache;
 
-	soc_ac97_ops.write(codec->ac97, reg, val);
+	codec->soc_phys_write(codec->ac97, val, reg);
 	reg = reg >> 1;
 	if (reg <= (ARRAY_SIZE(wm9712_reg)))
 		cache[reg] = val;
@@ -488,263 +489,271 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 	return 0;
 }
 
-static int ac97_prepare(struct snd_pcm_substream *substream)
+static int ac97_hifi_prepare(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
 {
+	struct snd_soc_pcm_runtime *pcm_link = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = pcm_link->codec;
 	int reg;
 	u16 vra;
 
-	vra = ac97_read(codec, AC97_EXTENDED_STATUS);
-	ac97_write(codec, AC97_EXTENDED_STATUS, vra | 0x1);
+	vra = wm9712_ac97_read(codec, AC97_EXTENDED_STATUS);
+	wm9712_ac97_write(codec, AC97_EXTENDED_STATUS, vra | 0x1);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		reg = AC97_PCM_FRONT_DAC_RATE;
 	else
 		reg = AC97_PCM_LR_ADC_RATE;
 
-	return ac97_write(codec, reg, runtime->rate);
+	return wm9712_ac97_write(codec, reg, runtime->rate);
 }
 
-static int ac97_aux_prepare(struct snd_pcm_substream *substream)
+static int ac97_aux_prepare(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
 {
+	struct snd_soc_pcm_runtime *pcm_link = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = pcm_link->codec;
 	u16 vra, xsle;
 
-	vra = ac97_read(codec, AC97_EXTENDED_STATUS);
-	ac97_write(codec, AC97_EXTENDED_STATUS, vra | 0x1);
-	xsle = ac97_read(codec, AC97_PCI_SID);
-	ac97_write(codec, AC97_PCI_SID, xsle | 0x8000);
+	vra = wm9712_ac97_read(codec, AC97_EXTENDED_STATUS);
+	wm9712_ac97_write(codec, AC97_EXTENDED_STATUS, vra | 0x1);
+	xsle = wm9712_ac97_read(codec, AC97_PCI_SID);
+	wm9712_ac97_write(codec, AC97_PCI_SID, xsle | 0x8000);
 
 	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
 
-	return ac97_write(codec, AC97_PCM_SURR_DAC_RATE, runtime->rate);
+	return wm9712_ac97_write(codec, AC97_PCM_SURR_DAC_RATE, runtime->rate);
 }
-
-#define WM9712_AC97_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
-		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 |\
-		SNDRV_PCM_RATE_48000)
-
-struct snd_soc_dai wm9712_dai[] = {
-{
-	.name = "AC97 HiFi",
-	.type = SND_SOC_DAI_AC97_BUS,
-	.playback = {
-		.stream_name = "HiFi Playback",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = WM9712_AC97_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.capture = {
-		.stream_name = "HiFi Capture",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = WM9712_AC97_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.prepare = ac97_prepare,},
-},
-{
-	.name = "AC97 Aux",
-	.playback = {
-		.stream_name = "Aux Playback",
-		.channels_min = 1,
-		.channels_max = 1,
-		.rates = WM9712_AC97_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.prepare = ac97_aux_prepare,},
-}
-};
-EXPORT_SYMBOL_GPL(wm9712_dai);
 
 static int wm9712_set_bias_level(struct snd_soc_codec *codec,
-				 enum snd_soc_bias_level level)
+	enum snd_soc_dapm_bias_level level)
 {
+	u16 reg;
+
 	switch (level) {
-	case SND_SOC_BIAS_ON:
-	case SND_SOC_BIAS_PREPARE:
+	case SND_SOC_BIAS_ON: /* full On */
+		/* liam - maybe enable thermal shutdown */
+		reg = wm9712_ac97_read(codec, AC97_EXTENDED_MID) & 0xdfff;
+		wm9712_ac97_write(codec, AC97_EXTENDED_MID, reg);
 		break;
-	case SND_SOC_BIAS_STANDBY:
-		ac97_write(codec, AC97_POWERDOWN, 0x0000);
+	case SND_SOC_BIAS_PREPARE: /* partial On */
 		break;
-	case SND_SOC_BIAS_OFF:
+	case SND_SOC_BIAS_STANDBY: /* Off, with power */
+		/* enable master bias and vmid */
+		wm9712_ac97_write(codec, AC97_POWERDOWN, 0x0000);
+		break;
+	case SND_SOC_BIAS_OFF: /* Off, without power */
 		/* disable everything including AC link */
-		ac97_write(codec, AC97_EXTENDED_MSTATUS, 0xffff);
-		ac97_write(codec, AC97_POWERDOWN, 0xffff);
+		wm9712_ac97_write(codec, AC97_POWERDOWN, 0xffff);
 		break;
 	}
 	codec->bias_level = level;
 	return 0;
 }
 
-static int wm9712_reset(struct snd_soc_codec *codec, int try_warm)
+static int wm9712_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	if (try_warm && soc_ac97_ops.warm_reset) {
-		soc_ac97_ops.warm_reset(codec->ac97);
-		if (ac97_read(codec, 0) == wm9712_reg[0])
-			return 1;
-	}
-
-	soc_ac97_ops.reset(codec->ac97);
-	if (ac97_read(codec, 0) != wm9712_reg[0])
-		goto err;
-	return 0;
-
-err:
-	printk(KERN_ERR "WM9712 AC97 reset failed\n");
-	return -EIO;
-}
-
-static int wm9712_soc_suspend(struct platform_device *pdev,
-	pm_message_t state)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = platform_get_drvdata(pdev);
 
 	wm9712_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
-static int wm9712_soc_resume(struct platform_device *pdev)
+static int wm9712_resume(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
-	int i, ret;
+	struct snd_soc_codec *codec = platform_get_drvdata(pdev);
+	int i;
 	u16 *cache = codec->reg_cache;
-
-	ret = wm9712_reset(codec, 1);
-	if (ret < 0) {
-		printk(KERN_ERR "could not reset AC97 codec\n");
-		return ret;
-	}
 
 	wm9712_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	if (ret == 0) {
-		/* Sync reg_cache with the hardware after cold reset */
-		for (i = 2; i < ARRAY_SIZE(wm9712_reg) << 1; i += 2) {
-			if (i == AC97_INT_PAGING || i == AC97_POWERDOWN ||
-			    (i > 0x58 && i != 0x5c))
-				continue;
-			soc_ac97_ops.write(codec->ac97, i, cache[i>>1]);
-		}
+	/* Sync reg_cache with the hardware after cold reset */
+	for (i = 2; i < ARRAY_SIZE(wm9712_reg) << 1; i+=2) {
+		if (i == AC97_INT_PAGING || i == AC97_POWERDOWN ||
+			(i > 0x58 && i != 0x5c))
+			continue;
+		codec->soc_phys_write(codec->ac97, i, cache[i>>1]);
 	}
 
 	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
 		wm9712_set_bias_level(codec, SND_SOC_BIAS_ON);
 
-	return ret;
+	return 0;
 }
 
-static int wm9712_soc_probe(struct platform_device *pdev)
+static int wm9712_codec_init(struct snd_soc_codec *codec,
+	struct snd_soc_card *soc_card)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret = 0;
-
-	printk(KERN_INFO "WM9711/WM9712 SoC Audio Codec %s\n", WM9712_VERSION);
-
-	socdev->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (socdev->codec == NULL)
-		return -ENOMEM;
-	codec = socdev->codec;
-	mutex_init(&codec->mutex);
-
-	codec->reg_cache = kmemdup(wm9712_reg, sizeof(wm9712_reg), GFP_KERNEL);
-
-	if (codec->reg_cache == NULL) {
-		ret = -ENOMEM;
-		goto cache_err;
-	}
-	codec->reg_cache_size = sizeof(wm9712_reg);
-	codec->reg_cache_step = 2;
-
-	codec->name = "WM9712";
-	codec->owner = THIS_MODULE;
-	codec->dai = wm9712_dai;
-	codec->num_dai = ARRAY_SIZE(wm9712_dai);
-	codec->write = ac97_write;
-	codec->read = ac97_read;
-	codec->set_bias_level = wm9712_set_bias_level;
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
-	if (ret < 0) {
-		printk(KERN_ERR "wm9712: failed to register AC97 codec\n");
-		goto codec_err;
-	}
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0)
-		goto pcm_err;
-
-	ret = wm9712_reset(codec, 0);
-	if (ret < 0) {
-		printk(KERN_ERR "AC97 link error\n");
-		goto reset_err;
-	}
-
 	/* set alc mux to none */
-	ac97_write(codec, AC97_VIDEO, ac97_read(codec, AC97_VIDEO) | 0x3000);
+	wm9712_ac97_write(codec, AC97_VIDEO,
+		wm9712_ac97_read(codec, AC97_VIDEO) | 0x3000);
 
 	wm9712_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm9712_add_controls(codec);
-	wm9712_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "wm9712: failed to register card\n");
-		goto reset_err;
-	}
+	snd_soc_add_new_controls(soc_card, wm9712_snd_ac97_controls, codec,
+		ARRAY_SIZE(wm9712_snd_ac97_controls));
+	wm9712_add_widgets(codec, soc_card);
 
 	return 0;
+}
 
-reset_err:
-	snd_soc_free_pcms(socdev);
+#define WM9712_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
+		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
+		SNDRV_PCM_RATE_48000)
 
-pcm_err:
-	snd_soc_free_ac97_codec(codec);
+#define WM9712_PCM_FORMATS \
+	(SNDRV_PCM_FMTBIT_S16  | SNDRV_PCM_FMTBIT_S24)
 
+static struct snd_soc_dai_caps wm9712_hifi_playback = {
+	.stream_name	= "HiFi Playback",
+	.channels_min	= 1,
+	.channels_max	= 2,
+	.rates		= WM9712_RATES,
+	.formats	= SNDRV_PCM_FMTBIT_S16,
+};
+
+static struct snd_soc_dai_caps wm9712_capture = {
+	.stream_name	= "HiFi Capture",
+	.channels_min	= 1,
+	.channels_max	= 2,
+	.rates		= WM9712_RATES,
+	.formats	= SNDRV_PCM_FMTBIT_S16,
+};
+
+static struct snd_soc_dai_caps wm9712_aux_playback = {
+	.stream_name	= "Aux Playback",
+	.channels_min	= 1,
+	.channels_max	= 1,
+	.rates		= WM9712_RATES,
+	.formats	= SNDRV_PCM_FMTBIT_S16,
+};
+
+static struct snd_soc_dai_ops wm9712_hifi_dai_ops = {
+	/* alsa ops */
+	.prepare = ac97_hifi_prepare,
+};
+
+static struct snd_soc_dai_ops wm9712_aux_dai_ops = {
+	/* alsa ops */
+	.prepare = ac97_aux_prepare,
+};
+
+/* for modprobe */
+const char wm9712_codec_id[] = "wm9712-codec";
+EXPORT_SYMBOL_GPL(wm9712_codec_id);
+
+const char wm9712_codec_hifi_dai_id[] = "wm9712-codec-hifi-dai";
+EXPORT_SYMBOL_GPL(wm9712_codec_hifi_dai_id);
+
+const char wm9712_codec_aux_dai_id[] = "wm9712-codec-aux-dai";
+EXPORT_SYMBOL_GPL(wm9712_codec_aux_dai_id);
+
+struct snd_soc_dai_new wm9712_hifi_dai = {
+	.name		= wm9712_codec_hifi_dai_id,
+	.playback	= &wm9712_hifi_playback,
+	.capture	= &wm9712_capture,
+	.ops		= &wm9712_hifi_dai_ops,
+};
+
+struct snd_soc_dai_new wm9712_aux_dai = {
+	.name		= wm9712_codec_aux_dai_id,
+	.playback	= &wm9712_aux_playback,
+	.capture	= &wm9712_capture,
+	.ops		= &wm9712_aux_dai_ops,
+};
+
+static struct snd_soc_codec_new wm9712_codec = {
+	.name		= wm9712_codec_id,
+	.reg_cache_size = sizeof(wm9712_reg),
+	.reg_cache_step = 2,
+	.set_bias_level	= wm9712_set_bias_level,
+	.init		= wm9712_codec_init,
+	.codec_read	= wm9712_ac97_read,
+	.codec_write	= wm9712_ac97_write,
+};
+
+static int wm9712_codec_probe(struct platform_device *pdev)
+{
+	struct wm9712_data *wm9712;
+	struct snd_soc_codec *codec;
+	int ret;
+
+	printk(KERN_INFO "WM9712 SoC Audio Codec %s\n", WM9712_VERSION);
+
+	codec = snd_soc_new_codec(&wm9712_codec, (char *) wm9712_reg);
+	if (codec == NULL)
+		return -ENOMEM;
+
+	wm9712 = kzalloc(sizeof(struct wm9712_data), GFP_KERNEL);
+	if (wm9712 == NULL) {
+		ret =  -ENOMEM;
+		goto priv_err;
+	}
+	codec->private_data = wm9712;
+	platform_set_drvdata(pdev, wm9712);
+
+	ret = snd_soc_register_codec(codec, &pdev->dev);
+	if (ret < 0)
+		goto codec_err;
+	wm9712->hifi_dai = snd_soc_register_codec_dai(&wm9712_hifi_dai, &pdev->dev);
+	if (wm9712->hifi_dai == NULL)
+		goto codec_err;
+	wm9712->aux_dai = snd_soc_register_codec_dai(&wm9712_aux_dai, &pdev->dev);
+	if (wm9712->aux_dai == NULL)
+		goto aux_dai_err;
+
+	return ret;
+aux_dai_err:
+	snd_soc_unregister_codec_dai(wm9712->hifi_dai);
 codec_err:
+	kfree(wm9712);
+priv_err:
+	snd_soc_unregister_codec(codec);
 	kfree(codec->reg_cache);
-
-cache_err:
-	kfree(socdev->codec);
-	socdev->codec = NULL;
+	kfree(codec);
 	return ret;
 }
 
-static int wm9712_soc_remove(struct platform_device *pdev)
+static int wm9712_codec_remove(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = platform_get_drvdata(pdev);
+	struct wm9712_data *wm9712 = codec->private_data;
 
-	if (codec == NULL)
-		return 0;
+	snd_soc_unregister_codec_dai(wm9712->hifi_dai);
+	snd_soc_unregister_codec_dai(wm9712->aux_dai);
 
-	snd_soc_dapm_free(socdev);
-	snd_soc_free_pcms(socdev);
-	snd_soc_free_ac97_codec(codec);
+	kfree(codec->private_data);
+	snd_soc_unregister_codec(codec);
 	kfree(codec->reg_cache);
 	kfree(codec);
 	return 0;
 }
 
-struct snd_soc_codec_device soc_codec_dev_wm9712 = {
-	.probe = 	wm9712_soc_probe,
-	.remove = 	wm9712_soc_remove,
-	.suspend =	wm9712_soc_suspend,
-	.resume =	wm9712_soc_resume,
+static struct platform_driver wm9712_codec_driver = {
+	.driver = {
+		.name		= wm9712_codec_id,
+		.owner		= THIS_MODULE,
+	},
+	.probe		= wm9712_codec_probe,
+	.remove		= __devexit_p(wm9712_codec_remove),
+	.suspend	= wm9712_suspend,
+	.resume		= wm9712_resume,
 };
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm9712);
+
+static __init int wm9712_init(void)
+{
+	return platform_driver_register(&wm9712_codec_driver);
+}
+
+static __exit void wm9712_exit(void)
+{
+	platform_driver_unregister(&wm9712_codec_driver);
+}
+
+module_init(wm9712_init);
+module_exit(wm9712_exit);
 
 MODULE_DESCRIPTION("ASoC WM9711/WM9712 driver");
 MODULE_AUTHOR("Liam Girdwood");

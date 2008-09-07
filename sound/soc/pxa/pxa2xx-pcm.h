@@ -13,6 +13,39 @@
 #ifndef _PXA2XX_PCM_H
 #define _PXA2XX_PCM_H
 
+/*
+ * PXA Audio Clocking.
+ */
+ 
+/* I2S clock */
+#define PXA2XX_I2S_SYSCLK		0
+
+/* SSP clock sources */
+#define PXA2XX_SSP_CLK_PLL		0
+#define PXA2XX_SSP_CLK_EXT		1
+#define PXA2XX_SSP_CLK_NET		2
+#define PXA2XX_SSP_CLK_AUDIO		3
+#define PXA2XX_SSP_CLK_NET_PLL		4
+
+/* SSP audio dividers */
+#define PXA2XX_SSP_AUDIO_DIV_ACDS	0
+#define PXA2XX_SSP_AUDIO_DIV_SCDB	1
+#define PXA2XX_SSP_DIV_SCR		2
+
+/* SSP ACDS audio dividers values */
+#define PXA2XX_SSP_CLK_AUDIO_DIV_1	0
+#define PXA2XX_SSP_CLK_AUDIO_DIV_2	1
+#define PXA2XX_SSP_CLK_AUDIO_DIV_4	2
+#define PXA2XX_SSP_CLK_AUDIO_DIV_8	3
+#define PXA2XX_SSP_CLK_AUDIO_DIV_16	4
+#define PXA2XX_SSP_CLK_AUDIO_DIV_32	5
+
+/* SSP divider bypass */
+#define PXA2XX_SSP_CLK_SCDB_4		0
+#define PXA2XX_SSP_CLK_SCDB_1		1
+
+
+/* Audio DMA parameter */
 struct pxa2xx_pcm_dma_params {
 	char *name;			/* stream identifier */
 	u32 dcmd;			/* DMA descriptor dcmd field */
@@ -20,15 +53,20 @@ struct pxa2xx_pcm_dma_params {
 	u32 dev_addr;			/* device physical address for DMA */
 };
 
+/* DAI GPIO parameters */
 struct pxa2xx_gpio {
 	u32 sys;
-	u32	rx;
+	u32 rx;
 	u32 tx;
 	u32 clk;
 	u32 frm;
 };
 
-/* platform data */
-extern struct snd_soc_platform pxa2xx_soc_platform;
+/* PXA audio platform IDs */
+extern const char pxa_platform_id[];
+extern const char pxa2xx_i2s_dai_id[];
+extern const char pxa_ac97_hifi_dai_id[];
+extern const char pxa_ac97_aux_dai_id[];
+extern const char pxa_ac97_mic_dai_id[];
 
 #endif

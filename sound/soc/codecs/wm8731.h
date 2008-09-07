@@ -31,14 +31,10 @@
 
 #define WM8731_CACHEREGNUM 	10
 
-#define WM8731_SYSCLK	0
+#define WM8731_SYSCLK		0
 #define WM8731_DAI		0
 
-struct wm8731_setup_data {
-	unsigned short i2c_address;
-};
-
-extern struct snd_soc_dai wm8731_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8731;
+extern const char wm8731_codec_id[];
+extern const char wm8731_codec_dai_id[];
 
 #endif
