@@ -2999,7 +2999,7 @@ cleanup1:
 
 cleanup0:
 	if (xceiv)
-		put_device(xceiv->dev);
+		otg_put_transceiver(xceiv);
 
 	if (cpu_is_omap16xx() || cpu_is_omap24xx()) {
 		clk_disable(hhc_clk);
@@ -3027,7 +3027,7 @@ static int __exit omap_udc_remove(struct platform_device *pdev)
 
 	pullup_disable(udc);
 	if (udc->transceiver) {
-		put_device(udc->transceiver->dev);
+		otg_put_transceiver(udc->transceiver);
 		udc->transceiver = NULL;
 	}
 	omap_writew(0, UDC_SYSCON1);

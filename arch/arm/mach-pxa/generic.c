@@ -19,6 +19,8 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/device.h>
+#include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
 #include <asm/system.h>
@@ -116,3 +118,30 @@ void __init pxa_map_io(void)
 	iotable_init(standard_io_desc, ARRAY_SIZE(standard_io_desc));
 	get_clk_frequency_khz(1);
 }
+
+static struct otg_transceiver *xceiv;
+
+/*
+ * otg_get_transceiver - find the (single) OTG transceiver driver
+ *
+ * Return the transceiver driver, after getting a refcount to it; or
+ * null if there is no such transceiver. The caller is responsible for
+ * releasing that count.
+ */
+struct otg_transceiver *otg_get_transceiver(void)
+{
+	if (xceiv)
+		get_device(xceiv->dev);
+	return xceiv;
+}
+EXPORT_SYMBOL(otg_get_transceiver);
+
+int otg_set_transceiver(struct otg_transceiver *x)
+{
+	if (xceiv && x)
+		return -EBUSY;
+	xceiv = x;
+	return 0;
+}
+EXPORT_SYMBOL(otg_set_transceiver);
+

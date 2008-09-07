@@ -408,10 +408,10 @@ static struct pca953x_platform_data pca9536_data = {
 
 static struct soc_camera_link iclink[] = {
 	{
-		.bus_id	= 0, /* Must match with the camera ID above */
+		.bus_id	= 0, /* Must match id in pxa27x_device_camera */
 		.gpio	= NR_BUILTIN_GPIO + 1,
 	}, {
-		.bus_id	= 0, /* Must match with the camera ID above */
+		.bus_id	= 0, /* Must match id in pxa27x_device_camera */
 	}
 };
 

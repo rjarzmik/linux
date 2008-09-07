@@ -31,6 +31,7 @@
 #include <linux/proc_fs.h>
 #include <linux/clk.h>
 #include <linux/irq.h>
+#include <linux/gpio.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>
@@ -1474,6 +1475,32 @@ static struct usb_ep_ops pxa_ep_ops = {
 	.fifo_flush	= pxa_ep_fifo_flush,
 };
 
+/**
+ * dplus_pullup - Connect or disconnect pullup resistor to D+ pin
+ * @udc: udc device
+ * @on: 0 if disconnect pullup resistor, 1 otherwise
+ *
+ * Context: in_interrupt() or !in_interrupt()
+ *
+ * Handle D+ pullup resistor, make the device visible to the usb bus, and
+ * declare it as a full speed usb device
+ */
+static void dplus_pullup(struct pxa_udc *udc, int on)
+{
+	if (on) {
+		if (udc->mach->gpio_pullup)
+			gpio_set_value(udc->mach->gpio_pullup,
+				       !udc->mach->gpio_pullup_inverted);
+		if (udc->mach->udc_command)
+			udc->mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
+	} else {
+		if (udc->mach->gpio_pullup)
+			gpio_set_value(udc->mach->gpio_pullup,
+				       !!udc->mach->gpio_pullup_inverted);
+		if (udc->mach->udc_command)
+			udc->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
+	}
+}
 
 /**
  * pxa_udc_get_frame - Returns usb frame number
@@ -1503,21 +1530,95 @@ static int pxa_udc_wakeup(struct usb_gadget *_gadget)
 	return 0;
 }
 
+/**
+ * pxa_udc_pullup - Offer manual D+ pullup control
+ * @_gadget: usb gadget using the control
+ * @is_active: 0 if disconnect, else connect D+ pullup resistor
+ *
+ * Context: in_interrupt() or !in_interrupt()
+ *
+ * Returns 0 if OK, -EOPNOTSUPP if udc driver doesn't handle D+ pullup
+ */
+static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
+{
+	struct pxa_udc *udc = to_gadget_udc(_gadget);
+
+	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
+		return -EOPNOTSUPP;
+
+	dplus_pullup(udc, is_active);
+	return 0;
+}
+
+static void udc_enable(struct pxa_udc *udc);
+static void udc_disable(struct pxa_udc *udc);
+
+/**
+ * pxa_udc_vbus_session - Called by external transceiver to enable/disable udc
+ * @_gadget: usb gadget
+ * @is_active: 0 if should disable the udc, 1 if should enable
+ *
+ * Enables the udc, and optionnaly activates D+ pullup resistor. Or disables the
+ * udc, and deactivates D+ pullup resistor.
+ *
+ * Returns 0
+ */
+static int pxa_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
+{
+	struct pxa_udc *udc = to_gadget_udc(_gadget);
+
+	if (is_active)
+		udc_enable(udc);
+	else
+		udc_disable(udc);
+
+	return 0;
+}
+
+/**
+ * pxa_udc_vbus_draw - Called by gadget driver after SET_CONFIGURATION completed
+ * @_gadget: usb gadget
+ * @mA: current drawn
+ *
+ * Context: !in_interrupt()
+ *
+ * Called after a configuration was chosen by a USB host, to inform how much
+ * current can be drawn by the device from VBus line.
+ *
+ * Returns 0 or -EOPNOTSUPP if no transceiver is handling the udc
+ */
+static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
+{
+	struct pxa_udc *udc;
+
+	udc = to_gadget_udc(_gadget);
+	if (udc->transceiver)
+		return otg_set_power(udc->transceiver, mA);
+	return -EOPNOTSUPP;
+}
+
 static const struct usb_gadget_ops pxa_udc_ops = {
 	.get_frame	= pxa_udc_get_frame,
 	.wakeup		= pxa_udc_wakeup,
-	/* current versions must always be self-powered */
+	.pullup		= pxa_udc_pullup,
+	.vbus_session	= pxa_udc_vbus_session,
+	.vbus_draw	= pxa_udc_vbus_draw,
 };
 
 /**
  * udc_disable - disable udc device controller
  * @udc: udc device
  *
+ * Context: in_interrupt() or !in_interrupt()
+ *
  * Disables the udc device : disables clocks, udc interrupts, control endpoint
  * interrupts.
  */
 static void udc_disable(struct pxa_udc *udc)
 {
+	if (!udc->enabled)
+		return;
+
 	udc_writel(udc, UDCICR0, 0);
 	udc_writel(udc, UDCICR1, 0);
 
@@ -1526,8 +1627,9 @@ static void udc_disable(struct pxa_udc *udc)
 
 	ep0_idle(udc);
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
-	if (udc->mach->udc_command)
-		udc->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
+
+	udc->enabled = 0;
+	dplus_pullup(udc, 0);
 }
 
 /**
@@ -1573,6 +1675,9 @@ static __init void udc_init_data(struct pxa_udc *dev)
  */
 static void udc_enable(struct pxa_udc *udc)
 {
+	if (udc->enabled)
+		return;
+
 	udc_writel(udc, UDCICR0, 0);
 	udc_writel(udc, UDCICR1, 0);
 	udc_clear_mask_UDCCR(udc, UDCCR_UDE);
@@ -1601,9 +1706,8 @@ static void udc_enable(struct pxa_udc *udc)
 	/* enable ep0 irqs */
 	pio_irq_enable(&udc->pxa_ep[0]);
 
-	dev_info(udc->dev, "UDC connecting\n");
-	if (udc->mach->udc_command)
-		udc->mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
+	udc->enabled = 1;
+	dplus_pullup(udc, 1);
 }
 
 /**
@@ -1648,9 +1752,21 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	dev_dbg(udc->dev, "registered gadget driver '%s'\n",
 		driver->driver.name);
 
-	udc_enable(udc);
+	if (udc->transceiver) {
+		retval = otg_set_peripheral(udc->transceiver, &udc->gadget);
+		if (retval) {
+			dev_err(udc->dev, "can't bind to transceiver\n");
+			goto transceiver_fail;
+		}
+	} else {
+		udc_enable(udc);
+	}
+
 	return 0;
 
+transceiver_fail:
+	if (driver->unbind)
+		driver->unbind(&udc->gadget);
 bind_fail:
 	device_del(&udc->gadget.dev);
 add_fail:
@@ -1701,15 +1817,18 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 		return -EINVAL;
 
 	stop_activity(udc, driver);
-	udc_disable(udc);
+	if (!udc->transceiver)
+		udc_disable(udc);
 
 	driver->unbind(&udc->gadget);
 	udc->driver = NULL;
 
 	device_del(&udc->gadget.dev);
-
 	dev_info(udc->dev, "unregistered gadget driver '%s'\n",
 		 driver->driver.name);
+
+	if (udc->transceiver)
+		return otg_set_peripheral(udc->transceiver, NULL);
 	return 0;
 }
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
@@ -2215,7 +2334,7 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
 	struct pxa_udc *udc = &memory;
-	int retval;
+	int retval = 0, gpio;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
@@ -2226,6 +2345,16 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 
 	udc->dev = &pdev->dev;
 	udc->mach = pdev->dev.platform_data;
+	udc->transceiver = otg_get_transceiver();
+
+	gpio = udc->mach->gpio_pullup;
+	if (gpio)
+		retval = gpio_request(gpio, "USB D+ pullup");
+	if (retval) {
+		dev_err(&pdev->dev, "Couldn't request gpio %d : %d\n",
+			gpio, retval);
+		return retval;
+	}
 
 	udc->clk = clk_get(&pdev->dev, "UDCCLK");
 	if (IS_ERR(udc->clk)) {
@@ -2276,11 +2405,17 @@ err_clk:
 static int __exit pxa_udc_remove(struct platform_device *_dev)
 {
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
+	int gpio = udc->mach->gpio_pullup;
 
 	usb_gadget_unregister_driver(udc->driver);
 	free_irq(udc->irq, udc);
 	pxa_cleanup_debugfs(udc);
+	if (gpio)
+		gpio_free(gpio);
 
+	otg_put_transceiver(udc->transceiver);
+
+	udc->transceiver = NULL;
 	platform_set_drvdata(_dev, NULL);
 	the_controller = NULL;
 	clk_put(udc->clk);

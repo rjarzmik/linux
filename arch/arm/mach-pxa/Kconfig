@@ -216,6 +216,18 @@ config MACH_MAGICIAN
 	select PXA27x
 	select IWMMXT
 
+config MACH_MIOA701
+	bool "Mitac Mio A701 Support"
+	select PXA27x
+	select IWMMXT
+	select LEDS_GPIO
+	select HAVE_PWM
+	select GPIO_SYSFS
+	help
+	  Say Y here if you intend to run this kernel on a
+	  MIO A701. Currently there is only basic support
+	  for this PDA.
+
 config MACH_PCM027
 	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
 	select PXA27x
@@ -235,6 +247,17 @@ config MACH_PALMTX
 	help
 	  Say Y here if you intend to run this kernel on a Palm T|X
 	  handheld computer.
+menu "Pxa 27x voltage"
+
+config PXA27x_VOLTAGE
+	tristate "Support PXA27x CPU Core Voltage Change Sequencer"
+	depends on PXA27x && CPU_FREQ
+
+config PXA27x_VOLTAGE_MAX1586B
+	tristate "MAX1586B PMIC"
+	depends on PXA27x_VOLTAGE
+
+endmenu
 
 config MACH_PCM990_BASEBOARD
 	bool "PHYTEC PCM-990 development board"
