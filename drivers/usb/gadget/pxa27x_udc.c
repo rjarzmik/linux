@@ -1550,36 +1550,10 @@ static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
-static void udc_enable(struct pxa_udc *udc);
-static void udc_disable(struct pxa_udc *udc);
-
-/**
- * pxa_udc_vbus_session - Called by external transceiver to enable/disable udc
- * @_gadget: usb gadget
- * @is_active: 0 if should disable the udc, 1 if should enable
- *
- * Enables the udc, and optionnaly activates D+ pullup resistor. Or disables the
- * udc, and deactivates D+ pullup resistor.
- *
- * Returns 0
- */
-static int pxa_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
-{
-	struct pxa_udc *udc = to_gadget_udc(_gadget);
-
-	if (is_active)
-		udc_enable(udc);
-	else
-		udc_disable(udc);
-
-	return 0;
-}
-
 static const struct usb_gadget_ops pxa_udc_ops = {
 	.get_frame	= pxa_udc_get_frame,
 	.wakeup		= pxa_udc_wakeup,
 	.pullup		= pxa_udc_pullup,
-	.vbus_session	= pxa_udc_vbus_session,
 	/* current versions must always be self-powered */
 };
 
