@@ -2515,6 +2515,7 @@ static int pxa_udc_suspend(struct platform_device *_dev, pm_message_t state)
 	}
 
 	udc_disable(udc);
+	udc->pullup_resume = udc->pullup_on;
 	dplus_pullup(udc, 0);
 
 	return 0;
@@ -2543,7 +2544,7 @@ static int pxa_udc_resume(struct platform_device *_dev)
 				ep->udccsr_value, ep->udccr_value);
 	}
 
-	dplus_pullup(udc, udc->pullup_on);
+	dplus_pullup(udc, udc->pullup_resume);
 	if (should_enable_udc(udc))
 		udc_enable(udc);
 	/*
