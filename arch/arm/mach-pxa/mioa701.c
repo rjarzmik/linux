@@ -47,6 +47,7 @@
 #include <mach/pxa2xx-regs.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
+#include <mach/rtc.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/i2c.h>
 #include <mach/camera.h>
@@ -855,6 +856,10 @@ struct i2c_pxa_platform_data i2c_pdata = {
 	.use_pio = 1,
 };
 
+/* RTC */
+static struct rtc_sa1100_platform_data __initdata mioa701_rtc_info = {
+	.pxa_use_rdcr = 1,
+};
 /*
  * Mio global
  */
@@ -933,6 +938,7 @@ static void __init mioa701_machine_init(void)
 	udc_init();
 	pm_power_off = mioa701_poweroff;
 	arm_pm_restart = mioa701_restart;
+	pxa_set_rtc_info(&mioa701_rtc_info);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gsm_init();
 	mioa701_battery_init();
