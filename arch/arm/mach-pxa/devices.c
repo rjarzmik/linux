@@ -17,6 +17,7 @@
 #include <mach/camera.h>
 #include <mach/audio.h>
 #include <mach/pxa3xx_nand.h>
+#include <linux/rtc/sa1100.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -296,10 +297,20 @@ void __init pxa_set_ficp_info(struct pxaficp_platform_data *info)
 	pxa_register_device(&pxa_device_ficp, info);
 }
 
+static struct rtc_sa1100_platform_data pxa_rtc_info;
+
 struct platform_device pxa_device_rtc = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
+	.dev		=  {
+		.platform_data = &pxa_rtc_info,
+	},
 };
+
+void __init pxa_set_rtc_info(struct rtc_sa1100_platform_data *info)
+{
+	memcpy(&pxa_rtc_info, info, sizeof *info);
+}
 
 static struct resource pxa_ac97_resources[] = {
 	[0] = {
