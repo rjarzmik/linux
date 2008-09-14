@@ -38,9 +38,18 @@
 #include <mach/pxa-regs.h>
 #endif
 
+#include <linux/rtc/sa1100.h>
+
 #define TIMER_FREQ		CLOCK_TICK_RATE
 #define RTC_DEF_DIVIDER		32768 - 1
 #define RTC_DEF_TRIM		0
+
+#define RYCR_year(r)	(((r) >> 9) & 0xfff)
+#define RYCR_month(r)	(((r) >> 5) & 0xf)
+#define RYCR_day(r)	((r) & 0x1f)
+#define RDCR_hour(r)	(((r) >> 12) & 0x1f)
+#define RDCR_min(r)	(((r) >> 6) & 0x3f)
+#define RDCR_sec(r)	((r) & 0x3f)
 
 static unsigned long rtc_freq = 1024;
 static struct rtc_time rtc_alarm;
@@ -54,6 +63,20 @@ static inline int rtc_periodic_alarm(struct rtc_time *tm)
 		((unsigned)tm->tm_hour > 23) ||
 		((unsigned)tm->tm_min > 59) ||
 		((unsigned)tm->tm_sec > 59);
+}
+
+static inline RYCR_calc(int year, int month, int day)
+{
+	u32 rycr = ((year << 9) | (month << 5) | day);
+
+	return rycr;
+}
+
+static inline RDCR_calc(int hour, int min, int sec)
+{
+	u32 rdcr = ((hour << 12) | (min << 6) | sec);
+
+	return rdcr;
 }
 
 /*
@@ -289,10 +312,18 @@ static int sa1100_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long time;
 	int ret;
+	struct rtc_sa1100_platform_data *pdata =
+		(struct rtc_sa1100_platform_data *)to_platform_device(dev);
 
 	ret = rtc_tm_to_time(tm, &time);
-	if (ret == 0)
+	if (ret == 0) {
 		RCNR = time;
+		if (pdata && pdata->pxa_use_rdcr) {
+			RYCR = RYCR_calc(tm->tm_year + 1900, (tm->tm_mon) + 1,
+				 tm->tm_mday);
+			RDCR = RDCR_calc(tm->tm_hour, tm->tm_min, tm->tm_sec);
+		}
+	}
 	return ret;
 }
 
@@ -348,9 +379,30 @@ static const struct rtc_class_ops sa1100_rtc_ops = {
 	.proc = sa1100_rtc_proc,
 };
 
+static void pxa_rtctime_init(void)
+{
+       unsigned long time = 0;
+       struct rtc_time tm;
+       u32 rycr, rdcr;
+
+       rycr = RYCR;
+       rdcr = RDCR;
+
+       tm.tm_year = RYCR_year(rycr) - 1900;
+       tm.tm_mon = RYCR_month(rycr) - 1;
+       tm.tm_mday = RYCR_day(rycr);
+       tm.tm_hour = RDCR_hour(rdcr);
+       tm.tm_min = RDCR_min(rdcr);
+       tm.tm_sec = RDCR_sec(rdcr);
+
+       rtc_tm_to_time(&tm, &time);
+       RCNR = time;
+}
+
 static int sa1100_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
+	struct rtc_sa1100_platform_data *pdata = pdev->dev.platform_data;
 
 	/*
 	 * According to the manual we should be able to let RTTR be zero
@@ -365,6 +417,9 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 		/* The current RTC value probably doesn't make sense either */
 		RCNR = 0;
 	}
+
+	if (pdata && pdata->pxa_use_rdcr)
+		pxa_rtctime_init();
 
 	device_init_wakeup(&pdev->dev, 1);
 
