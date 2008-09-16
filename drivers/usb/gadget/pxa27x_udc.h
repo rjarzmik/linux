@@ -429,6 +429,7 @@ struct udc_stats {
  * @pxa_ep: array of pxa available endpoints
  * @enabled: UDC was enabled by a previous udc_enable()
  * @pullup_on: if pullup resistor connected to D+ pin
+ * @pullup_resume: if pullup resistor should be connected to D+ pin on resume
  * @config: UDC active configuration
  * @last_interface: UDC interface of the last SET_INTERFACE host request
  * @last_alternate: UDC altsetting of the last SET_INTERFACE host request
