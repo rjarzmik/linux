@@ -6,6 +6,7 @@ menuconfig SND_SOC
 	tristate "ALSA for SoC audio support"
 	select SND_PCM
 	select AC97_BUS if SND_SOC_AC97_BUS
+	select AC97_BUS_NEW if SND_SOC_AC97_BUS_NEW
 	select SND_JACK
 	select REGMAP_I2C if I2C
 	select REGMAP_SPI if SPI_MASTER
@@ -23,6 +24,9 @@ menuconfig SND_SOC
 if SND_SOC
 
 config SND_SOC_AC97_BUS
+	bool
+
+config SND_SOC_AC97_BUS_NEW
 	bool
 
 config SND_SOC_GENERIC_DMAENGINE_PCM
