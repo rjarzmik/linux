@@ -106,7 +106,9 @@ all_compiled_sources()
 		case "$i" in
 			*.[cS])
 				j=${i/\.[cS]/\.o}
-				if [ -e $j ]; then
+				k=${i/"$tree"/"$O"\/}
+				k=${k/\.[cS]/\.o}
+				if [ -e $j -o -e "$k" ]; then
 					echo $i
 				fi
 				;;
