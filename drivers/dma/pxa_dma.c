@@ -1395,10 +1395,6 @@ static int pxad_init_dmadev(struct platform_device *op,
 	else
 		dma_set_mask(&op->dev, DMA_BIT_MASK(32));
 
-	ret = pxad_init_phys(op, pdev, nr_phy_chans);
-	if (ret)
-		return ret;
-
 	for (i = 0; i < nr_phy_chans; i++) {
 		c = devm_kzalloc(&op->dev, sizeof(*c), GFP_KERNEL);
 		if (!c)
@@ -1407,6 +1403,10 @@ static int pxad_init_dmadev(struct platform_device *op,
 		vchan_init(&c->vc, &pdev->slave);
 		init_waitqueue_head(&c->wq_state);
 	}
+
+	ret = pxad_init_phys(op, pdev, nr_phy_chans);
+	if (ret)
+		return ret;
 
 	return dma_async_device_register(&pdev->slave);
 }
@@ -1468,6 +1468,7 @@ static int pxad_probe(struct platform_device *op)
 	pdev->slave.descriptor_reuse = true;
 
 	pdev->slave.dev = &op->dev;
+	platform_set_drvdata(op, pdev);
 	ret = pxad_init_dmadev(op, pdev, dma_channels, nb_requestors);
 	if (ret) {
 		dev_err(pdev->slave.dev, "unable to register\n");
@@ -1485,7 +1486,6 @@ static int pxad_probe(struct platform_device *op)
 		}
 	}
 
-	platform_set_drvdata(op, pdev);
 	pxad_init_debugfs(pdev);
 	dev_info(pdev->slave.dev, "initialized %d channels on %d requestors\n",
 		 dma_channels, nb_requestors);
