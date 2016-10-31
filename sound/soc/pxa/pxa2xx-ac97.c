@@ -17,6 +17,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dma/pxa-dma.h>
 
+#include <sound/ac97/controller.h>
 #include <sound/core.h>
 #include <sound/ac97_codec.h>
 #include <sound/soc.h>
@@ -29,23 +30,35 @@
 
 #include "pxa2xx-ac97.h"
 
-static void pxa2xx_ac97_warm_reset(struct snd_ac97 *ac97)
+static void pxa2xx_ac97_warm_reset(struct ac97_controller *adrv)
 {
-	pxa2xx_ac97_try_warm_reset(ac97);
+	pxa2xx_ac97_try_warm_reset();
 
-	pxa2xx_ac97_finish_reset(ac97);
+	pxa2xx_ac97_finish_reset();
 }
 
-static void pxa2xx_ac97_cold_reset(struct snd_ac97 *ac97)
+static void pxa2xx_ac97_cold_reset(struct ac97_controller *adrv)
 {
-	pxa2xx_ac97_try_cold_reset(ac97);
+	pxa2xx_ac97_try_cold_reset();
 
-	pxa2xx_ac97_finish_reset(ac97);
+	pxa2xx_ac97_finish_reset();
 }
 
-static struct snd_ac97_bus_ops pxa2xx_ac97_ops = {
-	.read	= pxa2xx_ac97_read,
-	.write	= pxa2xx_ac97_write,
+static int pxa2xx_ac97_read_actrl(struct ac97_controller *adrv, int slot,
+				  unsigned short reg)
+{
+	return pxa2xx_ac97_read(slot, reg);
+}
+
+static int pxa2xx_ac97_write_actrl(struct ac97_controller *adrv, int slot,
+				   unsigned short reg, unsigned short val)
+{
+	return pxa2xx_ac97_write(slot, reg, val);
+}
+
+static struct ac97_controller_ops pxa2xx_ac97_ops = {
+	.read	= pxa2xx_ac97_read_actrl,
+	.write	= pxa2xx_ac97_write_actrl,
 	.warm_reset	= pxa2xx_ac97_warm_reset,
 	.reset	= pxa2xx_ac97_cold_reset,
 };
@@ -224,6 +237,7 @@ static const struct snd_soc_component_driver pxa_ac97_component = {
 static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 {
 	int ret;
+	pxa2xx_audio_ops_t *pdata = pdev->dev.platform_data;
 
 	if (pdev->id != -1) {
 		dev_err(&pdev->dev, "PXA2xx has only one AC97 port.\n");
@@ -236,7 +250,9 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = snd_soc_set_ac97_ops(&pxa2xx_ac97_ops);
+	ret = snd_ac97_controller_register(&pxa2xx_ac97_ops, &pdev->dev,
+					   AC97_SLOTS_AVAILABLE_ALL,
+					   pdata->codec_pdata);
 	if (ret != 0)
 		return ret;
 
@@ -251,7 +267,7 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 static int pxa2xx_ac97_dev_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
-	snd_soc_set_ac97_ops(NULL);
+	snd_ac97_controller_unregister(&pdev->dev);
 	pxa2xx_ac97_hw_remove(pdev);
 	return 0;
 }
