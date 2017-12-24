@@ -7,6 +7,8 @@
  *
  */
 
+#define DEBUG 1
+
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/mtd/rawnand.h>
@@ -2420,6 +2422,7 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 	 * in the DT node, this entry will be overwritten in nand_scan_ident().
 	 */
 	chip->ecc.mode = NAND_ECC_HW;
+	chip->options |= NAND_BUSWIDTH_AUTO;
 
 	/*
 	 * Save a reference value for timing registers before

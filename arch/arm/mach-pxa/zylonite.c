@@ -378,6 +378,8 @@ static struct mtd_partition zylonite_nand_partitions[] = {
 static struct pxa3xx_nand_platform_data zylonite_nand_info = {
 	.parts		= zylonite_nand_partitions,
 	.nr_parts	= ARRAY_SIZE(zylonite_nand_partitions),
+	// Don't break my Flash's BBT .flash_bbt	= 1,
+	.keep_config	= 1,
 };
 
 static void __init zylonite_init_nand(void)

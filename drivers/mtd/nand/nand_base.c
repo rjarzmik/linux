@@ -27,6 +27,8 @@
  *
  */
 
+#define DEBUG 1
+
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
@@ -2556,6 +2558,7 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
 		}
 
 		if (i == parser->npatterns) {
+			dump_stack();
 			pr_debug("->exec_op() parser: pattern not found!\n");
 			return -ENOTSUPP;
 		}
