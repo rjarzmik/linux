@@ -255,7 +255,7 @@ static void soc_pcmcia_hw_enable(struct soc_pcmcia_socket *skt)
 	for (i = 0; i < ARRAY_SIZE(skt->stat); i++)
 		if (skt->stat[i].irq) {
 			irq_set_irq_type(skt->stat[i].irq, IRQ_TYPE_EDGE_RISING);
-			irq_set_irq_type(skt->stat[i].irq, IRQ_TYPE_EDGE_BOTH);
+			//irq_set_irq_type(skt->stat[i].irq, IRQ_TYPE_EDGE_BOTH);
 		}
 }
 

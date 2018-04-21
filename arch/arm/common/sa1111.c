@@ -444,8 +444,9 @@ static int sa1111_setup_irq(struct sa1111 *sachip, unsigned irq_base)
 	irq_set_chained_handler_and_data(sachip->irq, sa1111_irq_handler,
 					 sachip);
 
-	dev_info(sachip->dev, "Providing IRQ%u-%u\n",
-		sachip->irq_base, sachip->irq_base + SA1111_IRQ_NR - 1);
+	dev_info(sachip->dev, "Providing IRQ%u-%u from IRQ %d\n",
+		 sachip->irq_base, sachip->irq_base + SA1111_IRQ_NR - 1,
+		sachip->irq);
 
 	return 0;
 }
@@ -1519,8 +1520,6 @@ static int __init sa1111_init(void)
 	if (ret == 0)
 		bus_register_notifier(&sa1111_bus_type, &sa1111_bus_notifier);
 #endif
-	if (ret == 0)
-		platform_driver_register(&sa1111_device_driver);
 	return ret;
 }
 
@@ -1533,8 +1532,15 @@ static void __exit sa1111_exit(void)
 	bus_unregister(&sa1111_bus_type);
 }
 
+static int sa1111_pd_init(void)
+{
+	return platform_driver_register(&sa1111_device_driver);
+}
+
 subsys_initcall(sa1111_init);
 module_exit(sa1111_exit);
+
+late_initcall(sa1111_pd_init);
 
 MODULE_DESCRIPTION("Intel Corporation SA1111 core driver");
 MODULE_LICENSE("GPL");

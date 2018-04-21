@@ -166,6 +166,8 @@ static struct sa1111_platform_data sa1111_info = {
 	.disable_devs	= SA1111_DEVID_SAC,
 };
 
+static struct platform_device lubbock_cplds_device;
+
 static struct platform_device sa1111_device = {
 	.name		= "sa1111",
 	.id		= -1,
@@ -173,6 +175,7 @@ static struct platform_device sa1111_device = {
 	.resource	= sa1111_resources,
 	.dev		= {
 		.platform_data	= &sa1111_info,
+		.parent = &lubbock_cplds_device.dev,
 	},
 };
 
@@ -347,11 +350,11 @@ static struct platform_device lubbock_cplds_device = {
 
 
 static struct platform_device *devices[] __initdata = {
+	&lubbock_cplds_device,
 	&sa1111_device,
 	&smc91x_device,
 	&lubbock_flash_device[0],
 	&lubbock_flash_device[1],
-	&lubbock_cplds_device,
 };
 
 static struct pxafb_mode_info sharp_lm8v31_mode = {
