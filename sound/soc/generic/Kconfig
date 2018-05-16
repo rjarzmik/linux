@@ -4,6 +4,9 @@ config SND_SIMPLE_CARD_UTILS
 config SND_SIMPLE_CARD
 	tristate "ASoC Simple sound card support"
 	select SND_SIMPLE_CARD_UTILS
+	select SND_PXA_SOC_SSP
+	select SND_PXA2XX_AC97
+	select SND_PXA2XX_SOC_I2S
 	help
 	  This option enables generic simple sound card support
 
