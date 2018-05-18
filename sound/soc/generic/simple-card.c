@@ -152,18 +152,33 @@ static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 	else if (dai_props->mclk_fs)
 		mclk_fs = dai_props->mclk_fs;
 
+printk(KERN_ERR "%s(): mclk_fs %d rate %d\n", __func__, mclk_fs, params_rate(params));
+
 	if (mclk_fs) {
 		mclk = params_rate(params) * mclk_fs;
+
+		if (dai_props->cpu_dai.clk)
+			clk_set_rate(dai_props->cpu_dai.clk, mclk);
+
 		ret = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 					     SND_SOC_CLOCK_IN);
 		if (ret && ret != -ENOTSUPP)
 			goto err;
 
-		ret = snd_soc_dai_set_sysclk(cpu_dai, 0, mclk,
+		ret = snd_soc_dai_set_sysclk(cpu_dai, 1, mclk, // PXA_SSP_CLK_EXT
 					     SND_SOC_CLOCK_OUT);
 		if (ret && ret != -ENOTSUPP)
 			goto err;
+
+		ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, 0, mclk);
+		if (ret < 0)
+			return ret;
+
+		ret = snd_soc_dai_set_clkdiv(cpu_dai, 2, 4); // PXA_SSP_DIV_SCR
+		if (ret < 0)
+			return ret;
 	}
+
 	return 0;
 err:
 	return ret;
