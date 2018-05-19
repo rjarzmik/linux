@@ -367,9 +367,9 @@ static struct pxaohci_platform_data raumfeld_ohci_info = {
 static struct gpiod_lookup_table raumfeld_rotary_gpios_table = {
 	.dev_id = "rotary-encoder.0",
 	.table = {
-		GPIO_LOOKUP_IDX("gpio-0",
+		GPIO_LOOKUP_IDX("gpio-pxa",
 				GPIO_VOLENC_A, NULL, 0, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX("gpio-0",
+		GPIO_LOOKUP_IDX("gpio-pxa",
 				GPIO_VOLENC_B, NULL, 1, GPIO_ACTIVE_HIGH),
 		{ },
 	},
@@ -656,19 +656,19 @@ static struct platform_device raumfeld_spi_device = {
 };
 
 static struct gpiod_lookup_table raumfeld_spi_gpiod_table = {
-	.dev_id         = "spi_gpio",
+	.dev_id         = "spi_gpio.0",
 	.table          = {
-		GPIO_LOOKUP("gpio-0", GPIO_SPI_CLK,
+		GPIO_LOOKUP("gpio-pxa", GPIO_SPI_CLK,
 			    "sck", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("gpio-0", GPIO_SPI_MOSI,
+		GPIO_LOOKUP("gpio-pxa", GPIO_SPI_MOSI,
 			    "mosi", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("gpio-0", GPIO_SPI_MISO,
+		GPIO_LOOKUP("gpio-pxa", GPIO_SPI_MISO,
 			    "miso", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("gpio-0", GPIO_SPDIF_CS,
+		GPIO_LOOKUP_IDX("gpio-pxa", GPIO_SPDIF_CS,
 				"cs", 0, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("gpio-0", GPIO_ACCEL_CS,
+		GPIO_LOOKUP_IDX("gpio-pxa", GPIO_ACCEL_CS,
 				"cs", 1, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("gpio-0", GPIO_MCLK_DAC_CS,
+		GPIO_LOOKUP_IDX("gpio-pxa", GPIO_MCLK_DAC_CS,
 				"cs", 2, GPIO_ACTIVE_HIGH),
 		{ },
 	},
@@ -690,7 +690,7 @@ static struct lis3lv02d_platform_data lis3_pdata = {
 
 #define SPI_AK4104	\
 {			\
-	.modalias	= "ak4104-codec",	\
+	.modalias	= "ak4104",	\
 	.max_speed_hz	= 10000,		\
 	.bus_num	= 0,			\
 	.chip_select	= 0,			\
@@ -931,7 +931,7 @@ static struct platform_device audio_supply_dummy_device = {
 };
 
 static struct platform_device *audio_regulator_devices[] = {
-	&audio_va_device,
+	//&audio_va_device,
 	&audio_supply_dummy_device,
 };
 
@@ -1032,6 +1032,12 @@ static void __init raumfeld_audio_init(void)
 		pr_warn("unable to request GPIO_MCLK_RESET\n");
 	else
 		gpio_direction_output(GPIO_MCLK_RESET, 1);
+
+	ret = gpio_request(GPIO_AUDIO_VA_ENABLE, "audio va");
+	if (ret < 0)
+		pr_warn("unable to request audio va\n");
+	else
+		gpio_direction_output(GPIO_AUDIO_VA_ENABLE, 1);
 
 	platform_add_devices(ARRAY_AND_SIZE(audio_regulator_devices));
 }

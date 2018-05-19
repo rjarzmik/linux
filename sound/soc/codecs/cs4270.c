@@ -529,9 +529,6 @@ static int cs4270_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
-				    cs4270->supplies);
-
 	return ret;
 }
 
@@ -545,7 +542,6 @@ static void cs4270_remove(struct snd_soc_component *component)
 {
 	struct cs4270_private *cs4270 = snd_soc_component_get_drvdata(component);
 
-	regulator_bulk_disable(ARRAY_SIZE(cs4270->supplies), cs4270->supplies);
 };
 
 #ifdef CONFIG_PM
@@ -572,9 +568,6 @@ static int cs4270_soc_suspend(struct snd_soc_component *component)
 	if (ret < 0)
 		return ret;
 
-	regulator_bulk_disable(ARRAY_SIZE(cs4270->supplies),
-			       cs4270->supplies);
-
 	return 0;
 }
 
@@ -582,11 +575,6 @@ static int cs4270_soc_resume(struct snd_soc_component *component)
 {
 	struct cs4270_private *cs4270 = snd_soc_component_get_drvdata(component);
 	int reg, ret;
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
-				    cs4270->supplies);
-	if (ret != 0)
-		return ret;
 
 	/* In case the device was put to hard reset during sleep, we need to
 	 * wait 500ns here before any I2C communication. */
@@ -667,16 +655,6 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 			      GFP_KERNEL);
 	if (!cs4270)
 		return -ENOMEM;
-
-	/* get the power supply regulators */
-	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
-		cs4270->supplies[i].supply = supply_names[i];
-
-	ret = devm_regulator_bulk_get(&i2c_client->dev,
-				      ARRAY_SIZE(cs4270->supplies),
-				      cs4270->supplies);
-	if (ret < 0)
-		return ret;
 
 	/* See if we have a way to bring the codec out of reset */
 	if (np) {

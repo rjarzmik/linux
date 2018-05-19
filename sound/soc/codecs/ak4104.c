@@ -179,12 +179,6 @@ static int ak4104_probe(struct snd_soc_component *component)
 	struct ak4104_private *ak4104 = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	ret = regulator_enable(ak4104->regulator);
-	if (ret < 0) {
-		dev_err(component->dev, "Unable to enable regulator: %d\n", ret);
-		return ret;
-	}
-
 	/* set power-up and non-reset bits */
 	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_CONTROL1,
 				 AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN,
@@ -201,7 +195,6 @@ static int ak4104_probe(struct snd_soc_component *component)
 	return 0;
 
 exit_disable_regulator:
-	regulator_disable(ak4104->regulator);
 	return ret;
 }
 
@@ -211,15 +204,12 @@ static void ak4104_remove(struct snd_soc_component *component)
 
 	regmap_update_bits(ak4104->regmap, AK4104_REG_CONTROL1,
 			   AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN, 0);
-	regulator_disable(ak4104->regulator);
 }
 
 #ifdef CONFIG_PM
 static int ak4104_soc_suspend(struct snd_soc_component *component)
 {
 	struct ak4104_private *priv = snd_soc_component_get_drvdata(component);
-
-	regulator_disable(priv->regulator);
 
 	return 0;
 }
@@ -228,10 +218,6 @@ static int ak4104_soc_resume(struct snd_soc_component *component)
 {
 	struct ak4104_private *priv = snd_soc_component_get_drvdata(component);
 	int ret;
-
-	ret = regulator_enable(priv->regulator);
-	if (ret < 0)
-		return ret;
 
 	return 0;
 }
@@ -283,13 +269,6 @@ static int ak4104_spi_probe(struct spi_device *spi)
 			      GFP_KERNEL);
 	if (ak4104 == NULL)
 		return -ENOMEM;
-
-	ak4104->regulator = devm_regulator_get(&spi->dev, "vdd");
-	if (IS_ERR(ak4104->regulator)) {
-		ret = PTR_ERR(ak4104->regulator);
-		dev_err(&spi->dev, "Unable to get Vdd regulator: %d\n", ret);
-		return ret;
-	}
 
 	ak4104->regmap = devm_regmap_init_spi(spi, &ak4104_regmap);
 	if (IS_ERR(ak4104->regmap)) {

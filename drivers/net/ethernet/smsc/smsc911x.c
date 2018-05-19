@@ -386,12 +386,6 @@ static int smsc911x_enable_resources(struct platform_device *pdev)
 	struct smsc911x_data *pdata = netdev_priv(ndev);
 	int ret = 0;
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(pdata->supplies),
-			pdata->supplies);
-	if (ret)
-		netdev_err(ndev, "failed to enable regulators %d\n",
-				ret);
-
 	if (!IS_ERR(pdata->clk)) {
 		ret = clk_prepare_enable(pdata->clk);
 		if (ret < 0)
@@ -409,12 +403,6 @@ static int smsc911x_disable_resources(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct smsc911x_data *pdata = netdev_priv(ndev);
 	int ret = 0;
-
-	ret = regulator_bulk_disable(ARRAY_SIZE(pdata->supplies),
-			pdata->supplies);
-
-	if (!IS_ERR(pdata->clk))
-		clk_disable_unprepare(pdata->clk);
 
 	return ret;
 }
@@ -435,19 +423,6 @@ static int smsc911x_request_resources(struct platform_device *pdev)
 	/* Request regulators */
 	pdata->supplies[0].supply = "vdd33a";
 	pdata->supplies[1].supply = "vddvario";
-	ret = regulator_bulk_get(&pdev->dev,
-			ARRAY_SIZE(pdata->supplies),
-			pdata->supplies);
-	if (ret) {
-		/*
-		 * Retry on deferrals, else just report the error
-		 * and try to continue.
-		 */
-		if (ret == -EPROBE_DEFER)
-			return ret;
-		netdev_err(ndev, "couldn't get regulators %d\n",
-				ret);
-	}
 
 	/* Request optional RESET GPIO */
 	pdata->reset_gpiod = devm_gpiod_get_optional(&pdev->dev,
@@ -471,10 +446,6 @@ static void smsc911x_free_resources(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct smsc911x_data *pdata = netdev_priv(ndev);
-
-	/* Free regulators */
-	regulator_bulk_free(ARRAY_SIZE(pdata->supplies),
-			pdata->supplies);
 
 	/* Free clock */
 	if (!IS_ERR(pdata->clk)) {

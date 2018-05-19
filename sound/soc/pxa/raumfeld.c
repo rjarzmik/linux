@@ -33,7 +33,7 @@
 
 static struct i2c_client *max9486_client;
 static struct i2c_board_info max9486_hwmon_info = {
-	I2C_BOARD_INFO("max9485", 0x63),
+	I2C_BOARD_INFO("max9485-xxx", 0x63),
 };
 
 #define MAX9485_MCLK_FREQ_112896 0x22
