@@ -127,6 +127,14 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	if (IS_ERR(ssp->clk))
 		return PTR_ERR(ssp->clk);
 
+	if (!dev->of_node && info) {
+		ssp->dma_chan_rx = info->dma_chan_rx_name;
+		ssp->dma_chan_tx = info->dma_chan_tx_name;
+	} else {
+		ssp->dma_chan_rx = "rx";
+		ssp->dma_chan_tx = "tx";
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(dev, "no memory resource defined\n");
